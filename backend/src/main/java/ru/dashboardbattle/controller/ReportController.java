@@ -1,16 +1,22 @@
 package ru.dashboardbattle.controller;
 
-import org.springframework.stereotype.Controller;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-@Controller
-@RequestMapping("/api/report")
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/reports")
 public class ReportController {
 
     @GetMapping("/{id}")
-    public String getReport(@PathVariable Long id) {
-        return "report";
+    public ResponseEntity<Map<String, Object>> getReport(@PathVariable Long id) {
+        return ResponseEntity.ok(Map.of(
+                "id", id,
+                "status", "DRAFT"
+        ));
     }
 }
