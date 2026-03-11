@@ -1,0 +1,4 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "cursor.attribution.attributeCommitsToAgent": false
+}

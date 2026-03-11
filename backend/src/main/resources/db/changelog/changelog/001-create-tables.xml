@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="001-create-users" author="dashboard-battle">
+        <createTable tableName="users">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="password_hash" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role" type="VARCHAR(50)" defaultValue="USER"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="002-create-companies" author="dashboard-battle">
+        <createTable tableName="companies">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_companies_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="003-create-moysklad-integrations" author="dashboard-battle">
+        <createTable tableName="moysklad_integrations">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="company_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_moysklad_company" references="companies(id)" deleteCascade="true"/>
+            </column>
+            <column name="token_encrypted" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="004-create-telegram-integrations" author="dashboard-battle">
+        <createTable tableName="telegram_integrations">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="company_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_telegram_company" references="companies(id)" deleteCascade="true"/>
+            </column>
+            <column name="bot_token_encrypted" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="channel_chat_id" type="VARCHAR(100)"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="005-create-top-n-reports" author="dashboard-battle">
+        <createTable tableName="top_n_reports">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="company_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_report_company" references="companies(id)" deleteCascade="true"/>
+            </column>
+            <column name="period_start" type="DATE"/>
+            <column name="period_end" type="DATE"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="DRAFT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+            <column name="published_at" type="TIMESTAMP"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="006-create-top-n-entries" author="dashboard-battle">
+        <createTable tableName="top_n_entries">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="report_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_entry_report" references="top_n_reports(id)" deleteCascade="true"/>
+            </column>
+            <column name="employee_name" type="VARCHAR(255)"/>
+            <column name="employee_id_ms" type="VARCHAR(100)"/>
+            <column name="revenue" type="NUMERIC(15,2)"/>
+            <column name="margin" type="NUMERIC(15,2)"/>
+            <column name="favorite_product" type="VARCHAR(255)"/>
+            <column name="rank" type="INT"/>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>
