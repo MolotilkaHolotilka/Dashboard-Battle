@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="007-create-publish-channels" author="dashboard-battle">
+        <createTable tableName="publish_channels">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="code" type="VARCHAR(50)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="name" type="VARCHAR(100)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="008-create-publish-destinations" author="dashboard-battle">
+        <createTable tableName="publish_destinations">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="channel_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_dest_channel" references="publish_channels(id)"/>
+            </column>
+            <column name="company_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_dest_company" references="companies(id)" deleteCascade="true"/>
+            </column>
+            <column name="external_identifier" type="VARCHAR(255)"/>
+            <column name="label" type="VARCHAR(255)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="009-create-publications" author="dashboard-battle">
+        <createTable tableName="publications">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="report_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_pub_report" references="top_n_reports(id)"/>
+            </column>
+            <column name="destination_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_pub_destination" references="publish_destinations(id)"/>
+            </column>
+            <column name="external_id" type="VARCHAR(255)"/>
+            <column name="status" type="VARCHAR(50)" defaultValue="PENDING"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="now()"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="010-insert-default-channels" author="dashboard-battle">
+        <insert tableName="publish_channels">
+            <column name="code" value="TELEGRAM"/>
+            <column name="name" value="Telegram"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>
