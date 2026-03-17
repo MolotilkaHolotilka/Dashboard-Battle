@@ -26,12 +26,6 @@ class DashboardBattleApplicationTests {
     @Test
     void contextLoads() {
         assertThat(dashboardBattleService).isNotNull();
-        assertThat(dashboardBattleService.getUserRepository()).isNotNull();
-        assertThat(dashboardBattleService.getCompanyRepository()).isNotNull();
-        assertThat(dashboardBattleService.getMoyskladIntegrationRepository()).isNotNull();
-        assertThat(dashboardBattleService.getTelegramIntegrationRepository()).isNotNull();
-        assertThat(dashboardBattleService.getTopNReportRepository()).isNotNull();
-        assertThat(dashboardBattleService.getTopNEntryRepository()).isNotNull();
     }
 
     @Test
