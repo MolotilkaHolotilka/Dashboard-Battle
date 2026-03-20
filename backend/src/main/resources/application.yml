@@ -71,5 +71,4 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-    defer-datasource-initialization: true
     open-in-view: false
