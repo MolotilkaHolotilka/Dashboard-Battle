@@ -56,3 +56,19 @@ spring:
   h2:
     console:
       enabled: true
+
+---
+# Профиль для запуска через docker: PostgreSQL + автозаполнение демо-данными
+spring:
+  config:
+    activate:
+      on-profile: demo-postgres
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:data-demo-postgres.sql
+  jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
