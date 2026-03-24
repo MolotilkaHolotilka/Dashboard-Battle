@@ -4,6 +4,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.dashboardbattle.dto.*;
 import ru.dashboardbattle.entity.*;
+import ru.dashboardbattle.exception.ConflictException;
+import ru.dashboardbattle.exception.NotFoundException;
+import ru.dashboardbattle.exception.UnsupportedChannelException;
 import ru.dashboardbattle.integration.MoySkladClient;
 import ru.dashboardbattle.integration.TelegramPublisher;
 import ru.dashboardbattle.mapper.TopNMapper;
@@ -58,6 +61,10 @@ public class DashboardBattleService {
     // --- регистрация ---
 
     public RegistrationResponseDto register(RegistrationRequestDto request) {
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new ConflictException("Пользователь с таким email уже существует: " + request.getEmail());
+        }
+
         User user = new User();
         user.setEmail(request.getEmail());
         user.setPasswordHash(request.getPassword()); // TODO: хешировать пароль
@@ -112,11 +119,11 @@ public class DashboardBattleService {
 
     public TopNReportDto requestTopN(Long companyId, int topN) {
         Company company = companyRepository.findById(companyId)
-                .orElseThrow(() -> new RuntimeException("Компания не найдена: " + companyId));
+                .orElseThrow(() -> new NotFoundException("Компания не найдена: " + companyId));
 
         MoySkladIntegration msIntegration = moyskladIntegrationRepository
                 .findByCompany_Id(companyId)
-                .orElseThrow(() -> new RuntimeException("Интеграция МойСклад не найдена для компании: " + companyId));
+                .orElseThrow(() -> new NotFoundException("Интеграция МойСклад не найдена для компании: " + companyId));
 
         TopNReportDto fetched = moySkladClient.fetchTopN(msIntegration.getTokenEncrypted(), topN);
 
@@ -132,7 +139,7 @@ public class DashboardBattleService {
 
     public TopNReportDto confirmTopN(Long reportId) {
         TopNReport report = topNReportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("Отчёт не найден: " + reportId));
+                .orElseThrow(() -> new NotFoundException("Отчёт не найден: " + reportId));
 
         report.setStatus("CONFIRMED");
         report = topNReportRepository.save(report);
@@ -144,10 +151,10 @@ public class DashboardBattleService {
 
     public PublicationResultDto publishTopN(Long reportId, Long destinationId) {
         TopNReport report = topNReportRepository.findById(reportId)
-                .orElseThrow(() -> new RuntimeException("Отчёт не найден: " + reportId));
+                .orElseThrow(() -> new NotFoundException("Отчёт не найден: " + reportId));
 
         PublishDestination destination = publishDestinationRepository.findById(destinationId)
-                .orElseThrow(() -> new RuntimeException("Назначение публикации не найдено: " + destinationId));
+                .orElseThrow(() -> new NotFoundException("Назначение публикации не найдено: " + destinationId));
 
         PublishChannel channel = destination.getChannel();
 
@@ -170,7 +177,7 @@ public class DashboardBattleService {
             if ("TELEGRAM".equals(channel.getCode())) {
                 TelegramIntegration tgIntegration = telegramIntegrationRepository
                         .findByCompany_Id(report.getCompany().getId())
-                        .orElseThrow(() -> new RuntimeException("Telegram интеграция не найдена"));
+                        .orElseThrow(() -> new NotFoundException("Telegram интеграция не найдена"));
 
                 result = telegramPublisher.publish(
                         reportDto,
@@ -178,8 +185,7 @@ public class DashboardBattleService {
                         destination.getExternalIdentifier()
                 );
             } else {
-                // TODO: поддержка других каналов
-                throw new RuntimeException("Канал " + channel.getCode() + " пока не поддерживается");
+                throw new UnsupportedChannelException(channel.getCode());
             }
 
             publication.setExternalId(result.getExternalId());
@@ -210,7 +216,7 @@ public class DashboardBattleService {
 
     public PublicationResultDto cancelPublication(Long publicationId) {
         Publication publication = publicationRepository.findById(publicationId)
-                .orElseThrow(() -> new RuntimeException("Публикация не найдена: " + publicationId));
+                .orElseThrow(() -> new NotFoundException("Публикация не найдена: " + publicationId));
 
         PublishDestination destination = publication.getDestination();
         PublishChannel channel = destination.getChannel();
@@ -218,7 +224,7 @@ public class DashboardBattleService {
         if ("TELEGRAM".equals(channel.getCode())) {
             TelegramIntegration tgIntegration = telegramIntegrationRepository
                     .findByCompany_Id(publication.getReport().getCompany().getId())
-                    .orElseThrow(() -> new RuntimeException("Telegram интеграция не найдена"));
+                    .orElseThrow(() -> new NotFoundException("Telegram интеграция не найдена"));
 
             boolean cancelled = telegramPublisher.cancelPublication(
                     tgIntegration.getBotTokenEncrypted(),
