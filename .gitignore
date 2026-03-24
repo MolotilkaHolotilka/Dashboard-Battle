@@ -10,3 +10,7 @@ backend/target/
 
 # Документация (только локально, не в репозитории)
 docs/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
