@@ -1,6 +1,7 @@
 package ru.dashboardbattle.integration.mock;
 
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import ru.dashboardbattle.dto.TopNEntryDto;
 import ru.dashboardbattle.dto.TopNReportDto;
 import ru.dashboardbattle.integration.MoySkladClient;
@@ -12,6 +13,7 @@ import java.util.List;
 
 // мок МойСклад — возвращает захардкоженные данные
 @Component
+@ConditionalOnProperty(name = "integration.moysklad.real-enabled", havingValue = "false", matchIfMissing = true)
 public class MoySkladClientMock implements MoySkladClient {
 
     @Override

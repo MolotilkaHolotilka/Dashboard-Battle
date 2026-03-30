@@ -26,6 +26,11 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
+    @ExceptionHandler(IntegrationException.class)
+    public ResponseEntity<Map<String, Object>> handleIntegration(IntegrationException ex) {
+        return error(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneric(Exception ex) {
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "Внутренняя ошибка сервера");

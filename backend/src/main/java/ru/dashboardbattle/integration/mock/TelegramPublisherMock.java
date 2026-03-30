@@ -1,6 +1,7 @@
 package ru.dashboardbattle.integration.mock;
 
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import ru.dashboardbattle.dto.PublicationResultDto;
 import ru.dashboardbattle.dto.TopNReportDto;
 import ru.dashboardbattle.integration.TelegramPublisher;
@@ -9,6 +10,7 @@ import java.util.UUID;
 
 // мок телеграм — имитирует отправку
 @Component
+@ConditionalOnProperty(name = "integration.telegram.real-enabled", havingValue = "false", matchIfMissing = true)
 public class TelegramPublisherMock implements TelegramPublisher {
 
     @Override

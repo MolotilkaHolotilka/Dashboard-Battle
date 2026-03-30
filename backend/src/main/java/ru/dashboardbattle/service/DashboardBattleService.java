@@ -2,9 +2,15 @@ package ru.dashboardbattle.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import ru.dashboardbattle.dto.*;
 import ru.dashboardbattle.entity.*;
 import ru.dashboardbattle.exception.ConflictException;
+import ru.dashboardbattle.exception.IntegrationException;
 import ru.dashboardbattle.exception.NotFoundException;
 import ru.dashboardbattle.exception.UnsupportedChannelException;
 import ru.dashboardbattle.integration.MoySkladClient;
@@ -19,6 +25,7 @@ import java.util.stream.Collectors;
 @Service
 @Transactional
 public class DashboardBattleService {
+    private static final Logger log = LoggerFactory.getLogger(DashboardBattleService.class);
 
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
@@ -32,6 +39,9 @@ public class DashboardBattleService {
 
     private final MoySkladClient moySkladClient;
     private final TelegramPublisher telegramPublisher;
+    private final String moyskladTokenOverride;
+    private final String telegramTokenOverride;
+    private final String telegramChatIdOverride;
 
     public DashboardBattleService(
             UserRepository userRepository,
@@ -44,7 +54,10 @@ public class DashboardBattleService {
             PublishDestinationRepository publishDestinationRepository,
             PublicationRepository publicationRepository,
             MoySkladClient moySkladClient,
-            TelegramPublisher telegramPublisher) {
+            TelegramPublisher telegramPublisher,
+            @org.springframework.beans.factory.annotation.Value("${integration.moysklad.token-override:}") String moyskladTokenOverride,
+            @org.springframework.beans.factory.annotation.Value("${integration.telegram.bot-token-override:}") String telegramTokenOverride,
+            @org.springframework.beans.factory.annotation.Value("${integration.telegram.chat-id-override:}") String telegramChatIdOverride) {
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
         this.moyskladIntegrationRepository = moyskladIntegrationRepository;
@@ -56,6 +69,9 @@ public class DashboardBattleService {
         this.publicationRepository = publicationRepository;
         this.moySkladClient = moySkladClient;
         this.telegramPublisher = telegramPublisher;
+        this.moyskladTokenOverride = moyskladTokenOverride;
+        this.telegramTokenOverride = telegramTokenOverride;
+        this.telegramChatIdOverride = telegramChatIdOverride;
     }
 
     // --- регистрация ---
@@ -125,7 +141,8 @@ public class DashboardBattleService {
                 .findByCompany_Id(companyId)
                 .orElseThrow(() -> new NotFoundException("Интеграция МойСклад не найдена для компании: " + companyId));
 
-        TopNReportDto fetched = moySkladClient.fetchTopN(msIntegration.getTokenEncrypted(), topN);
+        String moyskladToken = resolveMoySkladToken(msIntegration);
+        TopNReportDto fetched = moySkladClient.fetchTopN(moyskladToken, topN);
 
         // сразу сохраняем в БД со статусом PENDING
         TopNReport entity = TopNMapper.toEntity(fetched, company);
@@ -181,8 +198,8 @@ public class DashboardBattleService {
 
                 result = telegramPublisher.publish(
                         reportDto,
-                        tgIntegration.getBotTokenEncrypted(),
-                        destination.getExternalIdentifier()
+                        resolveTelegramToken(tgIntegration),
+                        resolveTelegramChatId(destination, tgIntegration)
                 );
             } else {
                 throw new UnsupportedChannelException(channel.getCode());
@@ -202,12 +219,18 @@ public class DashboardBattleService {
             return result;
 
         } catch (Exception e) {
+            log.error("Ошибка публикации reportId={}, destinationId={}: {}", reportId, destinationId, e.getMessage(), e);
             publication.setStatus("FAILED");
             publicationRepository.save(publication);
 
             report.setStatus("PUBLISH_FAILED");
             topNReportRepository.save(report);
 
+            if (e instanceof NotFoundException
+                    || e instanceof UnsupportedChannelException
+                    || e instanceof IntegrationException) {
+                throw (RuntimeException) e;
+            }
             throw new RuntimeException("Ошибка публикации: " + e.getMessage(), e);
         }
     }
@@ -227,8 +250,8 @@ public class DashboardBattleService {
                     .orElseThrow(() -> new NotFoundException("Telegram интеграция не найдена"));
 
             boolean cancelled = telegramPublisher.cancelPublication(
-                    tgIntegration.getBotTokenEncrypted(),
-                    destination.getExternalIdentifier(),
+                    resolveTelegramToken(tgIntegration),
+                    resolveTelegramChatId(destination, tgIntegration),
                     publication.getExternalId()
             );
 
@@ -296,4 +319,46 @@ public class DashboardBattleService {
     public TelegramIntegrationRepository getTelegramIntegrationRepository() { return telegramIntegrationRepository; }
     public TopNReportRepository getTopNReportRepository() { return topNReportRepository; }
     public TopNEntryRepository getTopNEntryRepository() { return topNEntryRepository; }
+
+    private String resolveTelegramToken(TelegramIntegration integration) {
+        String headerValue = getHeader("X-Debug-Telegram-Token");
+        if (StringUtils.hasText(headerValue)) {
+            return headerValue;
+        }
+        return StringUtils.hasText(telegramTokenOverride)
+                ? telegramTokenOverride
+                : integration.getBotTokenEncrypted();
+    }
+
+    private String resolveTelegramChatId(PublishDestination destination, TelegramIntegration integration) {
+        String headerValue = getHeader("X-Debug-Telegram-Chat-Id");
+        if (StringUtils.hasText(headerValue)) {
+            return headerValue;
+        }
+        if (StringUtils.hasText(telegramChatIdOverride)) {
+            return telegramChatIdOverride;
+        }
+        if (StringUtils.hasText(destination.getExternalIdentifier())) {
+            return destination.getExternalIdentifier();
+        }
+        return integration.getChannelChatId();
+    }
+
+    private String resolveMoySkladToken(MoySkladIntegration integration) {
+        String headerValue = getHeader("X-Debug-Moysklad-Token");
+        if (StringUtils.hasText(headerValue)) {
+            return headerValue;
+        }
+        return StringUtils.hasText(moyskladTokenOverride)
+                ? moyskladTokenOverride
+                : integration.getTokenEncrypted();
+    }
+
+    private String getHeader(String headerName) {
+        var attrs = RequestContextHolder.getRequestAttributes();
+        if (attrs instanceof ServletRequestAttributes servletAttrs) {
+            return servletAttrs.getRequest().getHeader(headerName);
+        }
+        return null;
+    }
 }

@@ -31,6 +31,16 @@ management:
     health:
       show-details: when-authorized
 
+integration:
+  moysklad:
+    real-enabled: ${MOYSKLAD_REAL_ENABLED:false}
+    base-url: ${MOYSKLAD_BASE_URL:https://api.moysklad.ru/api/remap/1.2}
+    token-override: ${MOYSKLAD_TOKEN:}
+  telegram:
+    real-enabled: ${TELEGRAM_REAL_ENABLED:false}
+    bot-token-override: ${TELEGRAM_BOT_TOKEN:}
+    chat-id-override: ${TELEGRAM_CHAT_ID:}
+
 ---
 # Профиль для запуска без PostgreSQL (только проверка старта приложения)
 spring:
