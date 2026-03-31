@@ -7,10 +7,22 @@
   margin-bottom: 0.5rem;
 }
 
+.hint {
+  margin: 0 0 0.8rem;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
 .divider {
   border: none;
   border-top: 1px solid #e5e7eb;
   margin: 2rem 0;
+}
+
+.sub-divider {
+  border: none;
+  border-top: 1px dashed #d1d5db;
+  margin: 1rem 0 1.25rem;
 }
 
 /* Forms */
@@ -21,6 +33,10 @@
   gap: 1rem;
   flex-wrap: wrap;
   margin-bottom: 1.25rem;
+}
+
+.quick-form {
+  margin-bottom: 0.8rem;
 }
 
 .pub-form label,

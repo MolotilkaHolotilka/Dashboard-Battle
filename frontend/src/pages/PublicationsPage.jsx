@@ -23,6 +23,10 @@ function PublicationsPage() {
   const [pubResult, setPubResult] = useState(null);
   const [pubError, setPubError] = useState(null);
   const [publishing, setPublishing] = useState(false);
+  const [quickForm, setQuickForm] = useState({ companyId: '', topN: 3, destinationId: 1 });
+  const [quickLoading, setQuickLoading] = useState(false);
+  const [quickError, setQuickError] = useState(null);
+  const [quickResult, setQuickResult] = useState(null);
 
   // --- list form ---
   const [companyId, setCompanyId] = useState('');
@@ -48,6 +52,34 @@ function PublicationsPage() {
       setPubError(err.response?.data?.message ?? 'Ошибка публикации');
     } finally {
       setPublishing(false);
+    }
+  }
+
+  async function handleQuickPublish(e) {
+    e.preventDefault();
+    setQuickError(null);
+    setQuickResult(null);
+    setQuickLoading(true);
+    try {
+      const reportResponse = await client.post(
+        `/reports/top-n/request/${quickForm.companyId}`,
+        null,
+        { params: { topN: Number(quickForm.topN) } }
+      );
+      const createdReport = reportResponse.data;
+      const publishResponse = await client.post(
+        `/reports/top-n/${createdReport.id}/publish`,
+        { destinationId: Number(quickForm.destinationId) }
+      );
+      setQuickResult({
+        reportId: createdReport.id,
+        publication: publishResponse.data,
+      });
+      setPubResult(publishResponse.data);
+    } catch (err) {
+      setQuickError(err.response?.data?.message ?? 'Ошибка быстрого сценария');
+    } finally {
+      setQuickLoading(false);
     }
   }
 
@@ -86,6 +118,62 @@ function PublicationsPage() {
       {/* ── Опубликовать ── */}
       <section className="pub-section">
         <h2>Опубликовать отчёт</h2>
+        <div className="hint">
+          Ускоренный сценарий для проверки: можно сразу запросить TOP-N из МойСклад и отправить в Telegram.
+        </div>
+        <form className="pub-form quick-form" onSubmit={handleQuickPublish}>
+          <label>
+            ID компании (быстрый сценарий)
+            <input
+              type="number"
+              value={quickForm.companyId}
+              onChange={e => setQuickForm({ ...quickForm, companyId: e.target.value })}
+              placeholder="1"
+              required
+              min="1"
+            />
+          </label>
+          <label>
+            N
+            <input
+              type="number"
+              value={quickForm.topN}
+              onChange={e => setQuickForm({ ...quickForm, topN: e.target.value })}
+              placeholder="3"
+              required
+              min="1"
+              max="50"
+            />
+          </label>
+          <label>
+            ID места назначения
+            <input
+              type="number"
+              value={quickForm.destinationId}
+              onChange={e => setQuickForm({ ...quickForm, destinationId: e.target.value })}
+              placeholder="1"
+              required
+              min="1"
+            />
+          </label>
+          <button type="submit" disabled={quickLoading}>
+            {quickLoading ? 'Выполняю...' : 'Запросить TOP-N и опубликовать'}
+          </button>
+        </form>
+
+        {quickError && <div className="alert alert-error">{quickError}</div>}
+        {quickResult && (
+          <div className="alert alert-success">
+            <strong>Быстрый сценарий выполнен</strong>
+            <div className="pub-result-row">
+              <span>Report ID: <b>{quickResult.reportId}</b></span>
+              <span>Publication ID: <b>{quickResult.publication.publicationId}</b></span>
+              <StatusBadge status={quickResult.publication.status} />
+            </div>
+          </div>
+        )}
+
+        <hr className="sub-divider" />
         <form className="pub-form" onSubmit={handlePublish}>
           <label>
             ID отчёта (ТОП-N)
