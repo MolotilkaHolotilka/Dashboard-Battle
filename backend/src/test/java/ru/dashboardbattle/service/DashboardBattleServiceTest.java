@@ -3,13 +3,15 @@ package ru.dashboardbattle.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import ru.dashboardbattle.dto.*;
 import ru.dashboardbattle.entity.*;
+import ru.dashboardbattle.integration.DemoPagePublishing;
 import ru.dashboardbattle.integration.MoySkladClient;
 import ru.dashboardbattle.integration.TelegramPublisher;
+import ru.dashboardbattle.integration.WebhookPublishing;
 import ru.dashboardbattle.repository.*;
 
 import java.math.BigDecimal;
@@ -38,8 +40,10 @@ class DashboardBattleServiceTest {
     @Mock private PublicationRepository publicationRepository;
     @Mock private MoySkladClient moySkladClient;
     @Mock private TelegramPublisher telegramPublisher;
+    @Mock private DemoPagePublishing demoPagePublisher;
+    @Mock private WebhookPublishing webhookPublisher;
+    @Mock private PasswordEncoder passwordEncoder;
 
-    @InjectMocks
     private DashboardBattleService service;
 
     private Company testCompany;
@@ -47,6 +51,27 @@ class DashboardBattleServiceTest {
 
     @BeforeEach
     void setUp() {
+        service = new DashboardBattleService(
+                userRepository,
+                companyRepository,
+                moyskladIntegrationRepository,
+                telegramIntegrationRepository,
+                topNReportRepository,
+                topNEntryRepository,
+                publishChannelRepository,
+                publishDestinationRepository,
+                publicationRepository,
+                moySkladClient,
+                telegramPublisher,
+                demoPagePublisher,
+                webhookPublisher,
+                passwordEncoder,
+                "",
+                "",
+                "",
+                false
+        );
+
         testUser = new User();
         testUser.setId(1L);
         testUser.setEmail("test@test.ru");
@@ -62,6 +87,7 @@ class DashboardBattleServiceTest {
 
     @Test
     void register_shouldSaveUserAndCompany() {
+        when(passwordEncoder.encode(anyString())).thenAnswer(inv -> "ENC_" + inv.getArgument(0));
         RegistrationRequestDto request = new RegistrationRequestDto("user@mail.ru", "pass123", "Компания");
 
         when(userRepository.save(any(User.class))).thenAnswer(inv -> {
@@ -84,6 +110,7 @@ class DashboardBattleServiceTest {
 
         verify(userRepository).save(any(User.class));
         verify(companyRepository).save(any(Company.class));
+        verify(passwordEncoder).encode("pass123");
     }
 
     // ========== Получение данных интеграций ==========
@@ -107,7 +134,7 @@ class DashboardBattleServiceTest {
         assertThat(data.getCompanyId()).isEqualTo(10L);
         assertThat(data.getMoySkladIntegrations()).hasSize(1);
         assertThat(data.getTelegramIntegrations()).hasSize(1);
-        assertThat(data.getTelegramIntegrations().get(0).getChannelChatId()).isEqualTo("-10012345");
+        assertThat(data.getTelegramIntegrations().get(0).getChannelChatId()).isEqualTo("••••2345");
 
         verify(moyskladIntegrationRepository).findAllByCompany_Id(10L);
         verify(telegramIntegrationRepository).findAllByCompany_Id(10L);
@@ -189,11 +216,13 @@ class DashboardBattleServiceTest {
         PublishChannel channel = new PublishChannel();
         channel.setId(1L);
         channel.setCode("TELEGRAM");
+        channel.setName("Telegram");
 
         PublishDestination destination = new PublishDestination();
         destination.setId(5L);
         destination.setChannel(channel);
         destination.setCompany(testCompany);
+        destination.setLabel("Основной канал");
         destination.setExternalIdentifier("-10012345");
 
         TelegramIntegration tgIntegration = new TelegramIntegration();
@@ -231,6 +260,7 @@ class DashboardBattleServiceTest {
         PublishChannel channel = new PublishChannel();
         channel.setId(1L);
         channel.setCode("TELEGRAM");
+        channel.setName("Telegram");
 
         PublishDestination destination = new PublishDestination();
         destination.setId(5L);
@@ -310,6 +340,8 @@ class DashboardBattleServiceTest {
     void listPublications_shouldFilterByDestination() {
         PublishChannel channel = new PublishChannel();
         channel.setId(1L);
+        channel.setCode("TELEGRAM");
+        channel.setName("Telegram");
 
         PublishDestination dest = new PublishDestination();
         dest.setId(5L);

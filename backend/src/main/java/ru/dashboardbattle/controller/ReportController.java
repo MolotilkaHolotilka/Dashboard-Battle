@@ -51,7 +51,6 @@ public class ReportController {
 
     @GetMapping("/{id}")
     public ResponseEntity<TopNReportDto> getReport(@PathVariable Long id) {
-        TopNReportDto dto = service.confirmTopN(id);
-        return ResponseEntity.ok(dto);
+        return ResponseEntity.ok(service.getReportById(id));
     }
 }

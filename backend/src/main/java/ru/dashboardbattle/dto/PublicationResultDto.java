@@ -7,6 +7,11 @@ public class PublicationResultDto {
     private Long destinationId;
     private String status;
     private String externalId;
+    /** Относительный путь для просмотра демо-страницы, например /api/public/demo/view/{token} */
+    private String viewerPath;
+    private String channelCode;
+    private String channelName;
+    private String destinationLabel;
 
     public PublicationResultDto() {
     }
@@ -49,5 +54,37 @@ public class PublicationResultDto {
 
     public void setExternalId(String externalId) {
         this.externalId = externalId;
+    }
+
+    public String getViewerPath() {
+        return viewerPath;
+    }
+
+    public void setViewerPath(String viewerPath) {
+        this.viewerPath = viewerPath;
+    }
+
+    public String getChannelCode() {
+        return channelCode;
+    }
+
+    public void setChannelCode(String channelCode) {
+        this.channelCode = channelCode;
+    }
+
+    public String getChannelName() {
+        return channelName;
+    }
+
+    public void setChannelName(String channelName) {
+        this.channelName = channelName;
+    }
+
+    public String getDestinationLabel() {
+        return destinationLabel;
+    }
+
+    public void setDestinationLabel(String destinationLabel) {
+        this.destinationLabel = destinationLabel;
     }
 }

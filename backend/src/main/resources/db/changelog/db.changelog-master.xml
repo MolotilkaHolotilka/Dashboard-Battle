@@ -8,4 +8,5 @@
 
     <include file="db/changelog/changelog/001-create-tables.xml" relativeToChangelogFile="false"/>
     <include file="db/changelog/changelog/002-create-publication-tables.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/changelog/003-week8-demo-webhook.xml" relativeToChangelogFile="false"/>
 </databaseChangeLog>

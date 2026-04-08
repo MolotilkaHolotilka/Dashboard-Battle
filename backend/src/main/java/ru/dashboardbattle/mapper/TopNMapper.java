@@ -24,6 +24,7 @@ public final class TopNMapper {
         TopNReportDto dto = new TopNReportDto();
         dto.setId(entity.getId());
         dto.setCompanyId(entity.getCompany() != null ? entity.getCompany().getId() : null);
+        dto.setCompanyName(entity.getCompany() != null ? entity.getCompany().getName() : null);
         dto.setPeriodStart(entity.getPeriodStart());
         dto.setPeriodEnd(entity.getPeriodEnd());
         dto.setStatus(entity.getStatus());
