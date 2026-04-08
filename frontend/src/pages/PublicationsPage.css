@@ -3,6 +3,48 @@
   margin-bottom: 1.25rem;
 }
 
+.workspace-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.workspace-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.company-hint {
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.list-hint {
+  font-size: 0.95rem;
+  color: #4b5563;
+  margin-right: 0.5rem;
+}
+
+.demo-link {
+  margin-top: 0.5rem;
+}
+
+.demo-link a {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.btn-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4f46e5;
+}
+
 .pub-section {
   margin-bottom: 0.5rem;
 }
@@ -50,7 +92,8 @@
 }
 
 .pub-form input,
-.list-form input {
+.list-form input,
+.pub-form select {
   width: 160px;
   padding: 0.5rem 0.7rem;
   border: 1px solid #ccc;
@@ -58,8 +101,15 @@
   font-size: 1rem;
 }
 
+.pub-form select {
+  min-width: 220px;
+  width: auto;
+  max-width: 100%;
+}
+
 .pub-form input:focus,
-.list-form input:focus {
+.list-form input:focus,
+.pub-form select:focus {
   outline: none;
   border-color: #4f46e5;
 }

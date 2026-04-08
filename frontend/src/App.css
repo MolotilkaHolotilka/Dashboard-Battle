@@ -37,6 +37,10 @@ body {
   transition: color 0.15s;
 }
 
+.nav-links a.nav-danger {
+  color: #f87171;
+}
+
 .nav-links a:hover,
 .nav-links a.active {
   color: #fff;

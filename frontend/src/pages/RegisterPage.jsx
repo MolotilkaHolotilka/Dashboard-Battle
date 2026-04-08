@@ -22,6 +22,10 @@ function RegisterPage() {
     try {
       const { data } = await client.post('/auth/register', form);
       setResult(data);
+      if (data.companyId != null) {
+        localStorage.setItem('lastCompanyId', String(data.companyId));
+        localStorage.setItem('lastCompanyName', data.companyName ?? '');
+      }
       setForm(INITIAL);
     } catch (err) {
       const msg = err.response?.data?.message ?? 'Ошибка соединения с сервером';
@@ -82,8 +86,8 @@ function RegisterPage() {
           <strong>Готово!</strong>
           <table className="result-table">
             <tbody>
-              <tr><td>User ID</td><td>{result.userId}</td></tr>
-              <tr><td>Company ID</td><td>{result.companyId}</td></tr>
+              <tr><td>ID пользователя</td><td>{result.userId}</td></tr>
+              <tr><td>ID компании</td><td>{result.companyId}</td></tr>
               <tr><td>Email</td><td>{result.email}</td></tr>
               <tr><td>Компания</td><td>{result.companyName}</td></tr>
             </tbody>

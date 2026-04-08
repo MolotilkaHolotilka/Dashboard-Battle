@@ -39,6 +39,7 @@ services:
       TELEGRAM_REAL_ENABLED: ${TELEGRAM_REAL_ENABLED:-false}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+      ALLOW_DEBUG_HEADERS: ${ALLOW_DEBUG_HEADERS:-false}
     ports:
       - "8080:8080"
 
@@ -46,6 +47,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_ENABLE_DANGER_ZONE: ${VITE_ENABLE_DANGER_ZONE:-false}
     container_name: dashboard-battle-frontend
     depends_on:
       - backend

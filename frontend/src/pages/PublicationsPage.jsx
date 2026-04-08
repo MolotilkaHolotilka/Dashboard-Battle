@@ -1,12 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import client from '../api/client';
 import './PublicationsPage.css';
 
 const STATUS_LABEL = {
   PUBLISHING: 'Публикуется',
-  PUBLISHED:  'Опубликован',
-  FAILED:     'Ошибка',
-  RECALLED:   'Отозван',
+  PUBLISHED: 'Опубликован',
+  FAILED: 'Ошибка',
+  RECALLED: 'Отозван',
 };
 
 function StatusBadge({ status }) {
@@ -18,24 +18,50 @@ function StatusBadge({ status }) {
 }
 
 function PublicationsPage() {
-  // --- publish form ---
+  const [workspaceCompanyId, setWorkspaceCompanyId] = useState(
+    () => localStorage.getItem('lastCompanyId') ?? ''
+  );
+  const [companyLabel, setCompanyLabel] = useState('');
+  const [destinations, setDestinations] = useState([]);
+
   const [pubForm, setPubForm] = useState({ reportId: '', destinationId: '' });
   const [pubResult, setPubResult] = useState(null);
   const [pubError, setPubError] = useState(null);
   const [publishing, setPublishing] = useState(false);
-  const [quickForm, setQuickForm] = useState({ companyId: '', topN: 3, destinationId: 1 });
+
+  const [quickTopN, setQuickTopN] = useState(3);
+  const [quickDestinationId, setQuickDestinationId] = useState('');
   const [quickLoading, setQuickLoading] = useState(false);
   const [quickError, setQuickError] = useState(null);
   const [quickResult, setQuickResult] = useState(null);
 
-  // --- list form ---
-  const [companyId, setCompanyId] = useState('');
   const [publications, setPublications] = useState(null);
   const [listError, setListError] = useState(null);
   const [listLoading, setListLoading] = useState(false);
-
-  // --- cancel ---
   const [cancellingId, setCancellingId] = useState(null);
+
+  const loadContext = useCallback(async (cid) => {
+    if (!cid) {
+      setCompanyLabel('');
+      setDestinations([]);
+      return;
+    }
+    try {
+      const [{ data: company }, { data: dests }] = await Promise.all([
+        client.get(`/companies/${cid}`),
+        client.get('/publish/destinations', { params: { companyId: cid } }),
+      ]);
+      setCompanyLabel(company.name ?? '');
+      setDestinations(dests);
+    } catch {
+      setCompanyLabel('');
+      setDestinations([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadContext(workspaceCompanyId);
+  }, [workspaceCompanyId, loadContext]);
 
   async function handlePublish(e) {
     e.preventDefault();
@@ -62,14 +88,14 @@ function PublicationsPage() {
     setQuickLoading(true);
     try {
       const reportResponse = await client.post(
-        `/reports/top-n/request/${quickForm.companyId}`,
+        `/reports/top-n/request/${workspaceCompanyId}`,
         null,
-        { params: { topN: Number(quickForm.topN) } }
+        { params: { topN: Number(quickTopN) } }
       );
       const createdReport = reportResponse.data;
       const publishResponse = await client.post(
         `/reports/top-n/${createdReport.id}/publish`,
-        { destinationId: Number(quickForm.destinationId) }
+        { destinationId: Number(quickDestinationId) }
       );
       setQuickResult({
         reportId: createdReport.id,
@@ -89,7 +115,9 @@ function PublicationsPage() {
     setPublications(null);
     setListLoading(true);
     try {
-      const { data } = await client.get('/publications', { params: { companyId } });
+      const { data } = await client.get('/publications', {
+        params: { companyId: workspaceCompanyId },
+      });
       setPublications(data);
     } catch (err) {
       setListError(err.response?.data?.message ?? 'Ошибка загрузки');
@@ -103,7 +131,7 @@ function PublicationsPage() {
     try {
       const { data } = await client.post(`/publications/${pubId}/cancel`);
       setPublications(prev =>
-        prev.map(p => (p.publicationId === pubId ? data : p))
+        (prev ?? []).map(p => (p.publicationId === pubId ? data : p))
       );
     } catch (err) {
       setListError(err.response?.data?.message ?? 'Ошибка отмены');
@@ -112,51 +140,69 @@ function PublicationsPage() {
     }
   }
 
+  function demoViewerUrl(viewerPath) {
+    if (!viewerPath) return null;
+    return `${window.location.origin}${viewerPath.startsWith('/') ? '' : '/'}${viewerPath}`;
+  }
+
+  const destinationOptions = destinations;
+
   return (
     <div className="pub-page">
-
-      {/* ── Опубликовать ── */}
-      <section className="pub-section">
-        <h2>Опубликовать отчёт</h2>
-        <div className="hint">
-          Ускоренный сценарий для проверки: можно сразу запросить TOP-N из МойСклад и отправить в Telegram.
-        </div>
-        <form className="pub-form quick-form" onSubmit={handleQuickPublish}>
+      <section className="pub-section workspace">
+        <h2>Компания для операций на этой странице</h2>
+        <div className="workspace-bar">
           <label>
-            ID компании (быстрый сценарий)
+            ID компании
             <input
               type="number"
-              value={quickForm.companyId}
-              onChange={e => setQuickForm({ ...quickForm, companyId: e.target.value })}
-              placeholder="1"
-              required
+              value={workspaceCompanyId}
+              onChange={e => setWorkspaceCompanyId(e.target.value)}
               min="1"
             />
           </label>
+          {companyLabel && (
+            <span className="company-hint">{companyLabel}</span>
+          )}
+        </div>
+        <p className="hint">
+          Места публикации подгружаются автоматически. Настроить каналы можно в разделе «Интеграции».
+        </p>
+      </section>
+
+      <section className="pub-section">
+        <h2>Опубликовать отчёт</h2>
+        <form className="pub-form quick-form" onSubmit={handleQuickPublish}>
           <label>
-            N
+            Размер ТОП (N)
             <input
               type="number"
-              value={quickForm.topN}
-              onChange={e => setQuickForm({ ...quickForm, topN: e.target.value })}
-              placeholder="3"
+              value={quickTopN}
+              onChange={e => setQuickTopN(e.target.value)}
               required
               min="1"
               max="50"
             />
           </label>
           <label>
-            ID места назначения
-            <input
-              type="number"
-              value={quickForm.destinationId}
-              onChange={e => setQuickForm({ ...quickForm, destinationId: e.target.value })}
-              placeholder="1"
+            Куда публиковать
+            <select
+              value={quickDestinationId}
+              onChange={e => setQuickDestinationId(e.target.value)}
               required
-              min="1"
-            />
+            >
+              <option value="">— выберите —</option>
+              {destinationOptions.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.label} ({d.channelName})
+                </option>
+              ))}
+            </select>
           </label>
-          <button type="submit" disabled={quickLoading}>
+          <button
+            type="submit"
+            disabled={quickLoading || !workspaceCompanyId || !quickDestinationId}
+          >
             {quickLoading ? 'Выполняю...' : 'Запросить TOP-N и опубликовать'}
           </button>
         </form>
@@ -166,8 +212,8 @@ function PublicationsPage() {
           <div className="alert alert-success">
             <strong>Быстрый сценарий выполнен</strong>
             <div className="pub-result-row">
-              <span>Report ID: <b>{quickResult.reportId}</b></span>
-              <span>Publication ID: <b>{quickResult.publication.publicationId}</b></span>
+              <span>Отчёт № <b>{quickResult.reportId}</b></span>
+              <span>Публикация № <b>{quickResult.publication.publicationId}</b></span>
               <StatusBadge status={quickResult.publication.status} />
             </div>
           </div>
@@ -176,26 +222,29 @@ function PublicationsPage() {
         <hr className="sub-divider" />
         <form className="pub-form" onSubmit={handlePublish}>
           <label>
-            ID отчёта (ТОП-N)
+            Номер отчёта (ТОП-N)
             <input
               type="number"
               value={pubForm.reportId}
               onChange={e => setPubForm({ ...pubForm, reportId: e.target.value })}
-              placeholder="1"
               required
               min="1"
             />
           </label>
           <label>
-            ID места назначения
-            <input
-              type="number"
+            Место публикации
+            <select
               value={pubForm.destinationId}
               onChange={e => setPubForm({ ...pubForm, destinationId: e.target.value })}
-              placeholder="1"
               required
-              min="1"
-            />
+            >
+              <option value="">— выберите —</option>
+              {destinationOptions.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.label} ({d.channelName})
+                </option>
+              ))}
+            </select>
           </label>
           <button type="submit" disabled={publishing}>
             {publishing ? 'Публикую...' : 'Опубликовать'}
@@ -206,15 +255,22 @@ function PublicationsPage() {
 
         {pubResult && (
           <div className="alert alert-success">
-            <strong>Публикация создана!</strong>
+            <strong>Публикация создана</strong>
             <div className="pub-result-row">
-              <span>ID: <b>{pubResult.publicationId}</b></span>
-              <span>Канал: <b>{pubResult.channelId}</b></span>
-              <span>Destination: <b>{pubResult.destinationId}</b></span>
+              <span>№ <b>{pubResult.publicationId}</b></span>
+              <span>Канал: <b>{pubResult.channelName ?? pubResult.channelId}</b></span>
+              <span>Место: <b>{pubResult.destinationLabel ?? pubResult.destinationId}</b></span>
               <StatusBadge status={pubResult.status} />
             </div>
             {pubResult.externalId && (
-              <div className="ext-id">External ID: {pubResult.externalId}</div>
+              <div className="ext-id">Внешний идентификатор: {pubResult.externalId}</div>
+            )}
+            {pubResult.viewerPath && (
+              <div className="demo-link">
+                <a href={demoViewerUrl(pubResult.viewerPath)} target="_blank" rel="noreferrer">
+                  Открыть демо-страницу
+                </a>
+              </div>
             )}
           </div>
         )}
@@ -222,23 +278,12 @@ function PublicationsPage() {
 
       <hr className="divider" />
 
-      {/* ── История публикаций ── */}
       <section className="pub-section">
         <h2>История публикаций</h2>
         <form className="list-form" onSubmit={handleLoadList}>
-          <label>
-            ID компании
-            <input
-              type="number"
-              value={companyId}
-              onChange={e => setCompanyId(e.target.value)}
-              placeholder="1"
-              required
-              min="1"
-            />
-          </label>
-          <button type="submit" disabled={listLoading}>
-            {listLoading ? 'Загрузка...' : 'Загрузить'}
+          <span className="list-hint">Текущая компания: <b>{workspaceCompanyId || '—'}</b></span>
+          <button type="submit" disabled={listLoading || !workspaceCompanyId}>
+            {listLoading ? 'Загрузка...' : 'Загрузить историю'}
           </button>
         </form>
 
@@ -251,11 +296,11 @@ function PublicationsPage() {
             <table className="pub-table">
               <thead>
                 <tr>
-                  <th>ID</th>
+                  <th>№</th>
                   <th>Канал</th>
-                  <th>Destination</th>
+                  <th>Место</th>
                   <th>Статус</th>
-                  <th>External ID</th>
+                  <th>Внешний ID</th>
                   <th></th>
                 </tr>
               </thead>
@@ -263,19 +308,30 @@ function PublicationsPage() {
                 {publications.map(p => (
                   <tr key={p.publicationId}>
                     <td>{p.publicationId}</td>
-                    <td>{p.channelId}</td>
-                    <td>{p.destinationId}</td>
+                    <td>{p.channelName ?? p.channelCode ?? p.channelId}</td>
+                    <td>{p.destinationLabel ?? p.destinationId}</td>
                     <td><StatusBadge status={p.status} /></td>
                     <td className="ext">{p.externalId ?? '—'}</td>
                     <td>
-                      {p.status === 'PUBLISHED' && (
+                      {p.status === 'PUBLISHED' && p.channelCode === 'TELEGRAM' && (
                         <button
                           className="btn-cancel"
+                          type="button"
                           onClick={() => handleCancel(p.publicationId)}
                           disabled={cancellingId === p.publicationId}
                         >
                           {cancellingId === p.publicationId ? '...' : 'Отменить'}
                         </button>
+                      )}
+                      {p.status === 'PUBLISHED' && p.channelCode === 'DEMO_PAGE' && p.viewerPath && (
+                        <a
+                          className="btn-link"
+                          href={demoViewerUrl(p.viewerPath)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Смотреть
+                        </a>
                       )}
                     </td>
                   </tr>

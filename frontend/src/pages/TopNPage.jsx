@@ -16,7 +16,7 @@ function StatusBadge({ status }) {
 }
 
 function TopNPage() {
-  const [companyId, setCompanyId] = useState('');
+  const [companyId, setCompanyId] = useState(() => localStorage.getItem('lastCompanyId') ?? '');
   const [topN, setTopN] = useState(5);
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
@@ -64,7 +64,7 @@ function TopNPage() {
             type="number"
             value={companyId}
             onChange={e => setCompanyId(e.target.value)}
-            placeholder="1"
+            placeholder="из регистрации"
             required
             min="1"
           />
@@ -92,7 +92,12 @@ function TopNPage() {
           <div className="report-header">
             <div className="report-meta">
               <span>Отчёт <strong>#{report.id}</strong></span>
-              <span>Компания: <strong>{report.companyId}</strong></span>
+              <span>
+                Компания:{' '}
+                <strong title={`id ${report.companyId}`}>
+                  {report.companyName ? `${report.companyName} (${report.companyId})` : report.companyId}
+                </strong>
+              </span>
               {report.periodStart && (
                 <span>Период: {report.periodStart} — {report.periodEnd}</span>
               )}

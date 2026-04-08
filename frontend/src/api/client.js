@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { dangerZoneEnabled } from '../config';
 
 const client = axios.create({
   baseURL: '/api',
@@ -6,6 +7,9 @@ const client = axios.create({
 });
 
 client.interceptors.request.use((config) => {
+  if (!dangerZoneEnabled) {
+    return config;
+  }
   const moyskladToken = localStorage.getItem('debug.moyskladToken');
   const telegramToken = localStorage.getItem('debug.telegramToken');
   const telegramChatId = localStorage.getItem('debug.telegramChatId');

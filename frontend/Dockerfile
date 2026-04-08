@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+ARG VITE_ENABLE_DANGER_ZONE=false
+ENV VITE_ENABLE_DANGER_ZONE=$VITE_ENABLE_DANGER_ZONE
 RUN npm run build
 
 # Этап 2: раздача статики через nginx

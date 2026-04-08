@@ -1,0 +1,83 @@
+.integrations-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.integrations-page .intro {
+  color: #64748b;
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+
+.company-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.company-bar input {
+  width: 120px;
+}
+
+.panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  background: #fff;
+}
+
+.panel.muted {
+  background: #f8fafc;
+}
+
+.panel h3 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.integrations-page label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.integrations-page textarea,
+.integrations-page input,
+.integrations-page select {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.dest-form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.dest-list {
+  padding-left: 1.25rem;
+  line-height: 1.6;
+}
+
+.hint-code {
+  color: #94a3b8;
+  font-size: 0.85rem;
+}
+
+.hint-extra {
+  font-size: 0.85rem;
+  color: #64748b;
+}

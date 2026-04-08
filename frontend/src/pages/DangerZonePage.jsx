@@ -30,8 +30,10 @@ function DangerZonePage() {
     <div className="danger-page">
       <h2>Danger Zone Debug</h2>
       <div className="danger-warning">
-        Небезопасно: токены хранятся в браузере и отправляются заголовками на API.
-        Для нормального режима используйте `.env`.
+        Только для локальной отладки. Нужны одновременно: переменная{' '}
+        <code>VITE_ENABLE_DANGER_ZONE=true</code> при сборке фронта и{' '}
+        <code>ALLOW_DEBUG_HEADERS=true</code> на сервере. Иначе сервер игнорирует эти заголовки.
+        В обычной работе сохраняйте токены через раздел «Интеграции» (запросы по HTTPS).
       </div>
 
       <form className="danger-form" onSubmit={handleSave}>
