@@ -21,6 +21,8 @@ services:
       retries: 5
 
   # Контейнер с приложением. Собирается из backend/Dockerfile. Подключается к postgres по имени сервиса.
+  # Внешний порт не публикуем: backend доступен внутри docker-сети как http://backend:8080
+  # (frontend/nginx.conf проксирует /api именно туда). Это исключает конфликты портов в Coolify.
   backend:
     build:
       context: ./backend
@@ -41,8 +43,8 @@ services:
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
       ALLOW_DEBUG_HEADERS: ${ALLOW_DEBUG_HEADERS:-false}
       JWT_SECRET: ${JWT_SECRET:-dashboard-battle-jwt-secret-32chars!!}
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
 
   frontend:
     build:
