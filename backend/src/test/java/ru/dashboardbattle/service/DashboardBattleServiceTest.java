@@ -346,10 +346,18 @@ class DashboardBattleServiceTest {
         PublishDestination dest = new PublishDestination();
         dest.setId(5L);
         dest.setChannel(channel);
+        dest.setCompany(testCompany);
+
+        TopNReport report = new TopNReport();
+        report.setId(50L);
+        report.setCompany(testCompany);
+        report.setPeriodStart(LocalDate.of(2026, 2, 1));
+        report.setPeriodEnd(LocalDate.of(2026, 2, 28));
 
         Publication pub = new Publication();
         pub.setId(77L);
         pub.setDestination(dest);
+        pub.setReport(report);
         pub.setStatus("PUBLISHED");
         pub.setExternalId("tg-msg-123");
 

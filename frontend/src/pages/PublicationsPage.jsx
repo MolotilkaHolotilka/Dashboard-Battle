@@ -30,11 +30,12 @@ function PublicationsPage() {
   const [pubError, setPubError] = useState(null);
   const [publishing, setPublishing] = useState(false);
 
-  const [quickTopN, setQuickTopN] = useState(3);
-  const [quickDestinationId, setQuickDestinationId] = useState('');
-  const [quickLoading, setQuickLoading] = useState(false);
-  const [quickError, setQuickError] = useState(null);
-  const [quickResult, setQuickResult] = useState(null);
+  const [newTopN, setNewTopN] = useState(3);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [createResult, setCreateResult] = useState(null);
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
 
   const [publications, setPublications] = useState(null);
   const [listError, setListError] = useState(null);
@@ -61,12 +62,29 @@ function PublicationsPage() {
     }
   }, []);
 
+  const loadReports = useCallback(async (cid) => {
+    if (!cid) {
+      setReports([]);
+      return;
+    }
+    setReportsLoading(true);
+    try {
+      const { data } = await client.get('/reports/top-n', { params: { companyId: cid } });
+      setReports(data ?? []);
+    } catch {
+      setReports([]);
+    } finally {
+      setReportsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (workspaceCompanyId) {
       localStorage.setItem('lastCompanyId', String(workspaceCompanyId));
     }
     loadContext(workspaceCompanyId);
-  }, [workspaceCompanyId, loadContext]);
+    loadReports(workspaceCompanyId);
+  }, [workspaceCompanyId, loadContext, loadReports]);
 
   async function handlePublish(e) {
     e.preventDefault();
@@ -79,6 +97,7 @@ function PublicationsPage() {
         { destinationId: Number(pubForm.destinationId) }
       );
       setPubResult(data);
+      await loadReports(workspaceCompanyId);
     } catch (err) {
       setPubError(err.response?.data?.message ?? 'Ошибка публикации');
     } finally {
@@ -86,31 +105,25 @@ function PublicationsPage() {
     }
   }
 
-  async function handleQuickPublish(e) {
+  async function handleCreateReport(e) {
     e.preventDefault();
-    setQuickError(null);
-    setQuickResult(null);
-    setQuickLoading(true);
+    setCreateError(null);
+    setCreateResult(null);
+    setCreateLoading(true);
     try {
       const reportResponse = await client.post(
         `/reports/top-n/request/${workspaceCompanyId}`,
         null,
-        { params: { topN: Number(quickTopN) } }
+        { params: { topN: Number(newTopN) } }
       );
       const createdReport = reportResponse.data;
-      const publishResponse = await client.post(
-        `/reports/top-n/${createdReport.id}/publish`,
-        { destinationId: Number(quickDestinationId) }
-      );
-      setQuickResult({
-        reportId: createdReport.id,
-        publication: publishResponse.data,
-      });
-      setPubResult(publishResponse.data);
+      setCreateResult(createdReport);
+      setPubForm(prev => ({ ...prev, reportId: String(createdReport.id) }));
+      await loadReports(workspaceCompanyId);
     } catch (err) {
-      setQuickError(err.response?.data?.message ?? 'Ошибка быстрого сценария');
+      setCreateError(err.response?.data?.message ?? 'Ошибка формирования ТОП-N');
     } finally {
-      setQuickLoading(false);
+      setCreateLoading(false);
     }
   }
 
@@ -138,6 +151,7 @@ function PublicationsPage() {
       setPublications(prev =>
         (prev ?? []).map(p => (p.publicationId === pubId ? data : p))
       );
+      await loadReports(workspaceCompanyId);
     } catch (err) {
       setListError(err.response?.data?.message ?? 'Ошибка отмены');
     } finally {
@@ -151,6 +165,19 @@ function PublicationsPage() {
   }
 
   const destinationOptions = destinations;
+  const availableReports = reports.filter(report => report.status === 'PENDING' || report.status === 'CONFIRMED');
+
+  function formatDateTime(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    return date.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
 
   return (
     <div className="pub-page">
@@ -184,65 +211,78 @@ function PublicationsPage() {
       </section>
 
       <section className="pub-section">
-        <h2>Опубликовать отчёт</h2>
-        <form className="pub-form quick-form" onSubmit={handleQuickPublish}>
+        <h2>Шаг 1. Сформировать рейтинг</h2>
+        <form className="pub-form quick-form" onSubmit={handleCreateReport}>
           <label>
             Размер ТОП (N)
             <input
               type="number"
-              value={quickTopN}
-              onChange={e => setQuickTopN(e.target.value)}
+              value={newTopN}
+              onChange={e => setNewTopN(e.target.value)}
               required
               min="1"
               max="50"
             />
           </label>
-          <label>
-            Куда публиковать
-            <select
-              value={quickDestinationId}
-              onChange={e => setQuickDestinationId(e.target.value)}
-              required
-            >
-              <option value="">— выберите —</option>
-              {destinationOptions.map(d => (
-                <option key={d.id} value={d.id}>
-                  {d.label} ({d.channelName})
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            disabled={quickLoading || !workspaceCompanyId || !quickDestinationId}
-          >
-            {quickLoading ? 'Выполняю...' : 'Запросить TOP-N и опубликовать'}
+          <button type="submit" disabled={createLoading || !workspaceCompanyId}>
+            {createLoading ? 'Формирую...' : 'Сформировать TOP-N'}
           </button>
         </form>
 
-        {quickError && <div className="alert alert-error">{quickError}</div>}
-        {quickResult && (
+        {createError && <div className="alert alert-error">{createError}</div>}
+        {createResult && (
           <div className="alert alert-success">
-            <strong>Быстрый сценарий выполнен</strong>
+            <strong>Рейтинг сформирован</strong>
             <div className="pub-result-row">
-              <span>Отчёт № <b>{quickResult.reportId}</b></span>
-              <span>Публикация № <b>{quickResult.publication.publicationId}</b></span>
-              <StatusBadge status={quickResult.publication.status} />
+              <span>
+                {createResult.companyName ?? companyLabel ?? 'Компания'}{' '}
+                ({formatDateTime(createResult.createdAt)})
+              </span>
+              <span>Статус: <StatusBadge status={createResult.status} /></span>
             </div>
           </div>
         )}
 
+        <h3 className="subheading">Ранее сформированные рейтинги, доступные для публикации</h3>
+        {reportsLoading ? (
+          <p className="hint">Загрузка сформированных рейтингов...</p>
+        ) : availableReports.length === 0 ? (
+          <p className="hint">Подтверждённых или ожидающих подтверждения рейтингов пока нет.</p>
+        ) : (
+          <ul className="report-list">
+            {availableReports.map(report => (
+              <li key={report.id}>
+                <button
+                  type="button"
+                  className={`report-pick ${String(pubForm.reportId) === String(report.id) ? 'active' : ''}`}
+                  onClick={() => setPubForm(prev => ({ ...prev, reportId: String(report.id) }))}
+                >
+                  <span>{report.companyName ?? companyLabel ?? `Компания #${report.companyId}`}</span>
+                  <span>{formatDateTime(report.createdAt)}</span>
+                  <StatusBadge status={report.status} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <hr className="sub-divider" />
+        <h2>Шаг 2. Опубликовать рейтинг</h2>
         <form className="pub-form" onSubmit={handlePublish}>
           <label>
-            Номер отчёта (ТОП-N)
-            <input
-              type="number"
+            Выберите рейтинг
+            <select
               value={pubForm.reportId}
               onChange={e => setPubForm({ ...pubForm, reportId: e.target.value })}
               required
-              min="1"
-            />
+            >
+              <option value="">— выберите рейтинг —</option>
+              {availableReports.map(report => (
+                <option key={report.id} value={report.id}>
+                  {`${report.companyName ?? companyLabel ?? `Компания #${report.companyId}`} · ${formatDateTime(report.createdAt)}`}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             Место публикации
@@ -270,7 +310,8 @@ function PublicationsPage() {
           <div className="alert alert-success">
             <strong>Публикация создана</strong>
             <div className="pub-result-row">
-              <span>№ <b>{pubResult.publicationId}</b></span>
+              <span>{formatDateTime(pubResult.createdAt)}</span>
+              <span>{pubResult.companyName ?? companyLabel ?? 'Компания'}</span>
               <span>Канал: <b>{pubResult.channelName ?? pubResult.channelId}</b></span>
               <span>Место: <b>{pubResult.destinationLabel ?? pubResult.destinationId}</b></span>
               <StatusBadge status={pubResult.status} />
@@ -309,7 +350,8 @@ function PublicationsPage() {
             <table className="pub-table">
               <thead>
                 <tr>
-                  <th>№</th>
+                  <th>Дата</th>
+                  <th>Рейтинг</th>
                   <th>Канал</th>
                   <th>Место</th>
                   <th>Статус</th>
@@ -320,7 +362,8 @@ function PublicationsPage() {
               <tbody>
                 {publications.map(p => (
                   <tr key={p.publicationId}>
-                    <td>{p.publicationId}</td>
+                    <td>{formatDateTime(p.createdAt)}</td>
+                    <td>{`${p.companyName ?? companyLabel ?? 'Компания'} · #${p.reportId ?? '—'}`}</td>
                     <td>{p.channelName ?? p.channelCode ?? p.channelId}</td>
                     <td>{p.destinationLabel ?? p.destinationId}</td>
                     <td><StatusBadge status={p.status} /></td>

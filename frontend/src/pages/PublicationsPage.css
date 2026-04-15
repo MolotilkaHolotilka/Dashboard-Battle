@@ -87,6 +87,39 @@
   margin: 1rem 0 1.25rem;
 }
 
+.subheading {
+  margin: 0.5rem 0 0.75rem;
+  font-size: 1rem;
+  color: #374151;
+}
+
+.report-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.report-pick {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.65rem 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.report-pick.active {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.12);
+}
+
 /* Forms */
 .pub-form,
 .list-form {

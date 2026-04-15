@@ -19,7 +19,8 @@ describe('PublicationsPage', () => {
 
   it('рендерит обе секции страницы', () => {
     render(<PublicationsPage />);
-    expect(screen.getByText('Опубликовать отчёт')).toBeInTheDocument();
+    expect(screen.getByText('Шаг 1. Сформировать рейтинг')).toBeInTheDocument();
+    expect(screen.getByText('Шаг 2. Опубликовать рейтинг')).toBeInTheDocument();
     expect(screen.getByText('История публикаций')).toBeInTheDocument();
   });
 

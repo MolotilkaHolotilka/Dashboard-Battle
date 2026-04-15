@@ -356,6 +356,11 @@ public class DashboardBattleService {
             result.setPublicationId(publication.getId());
             result.setChannelId(channel.getId());
             result.setDestinationId(destination.getId());
+            result.setReportId(report.getId());
+            result.setCompanyName(report.getCompany().getName());
+            result.setReportPeriodStart(report.getPeriodStart());
+            result.setReportPeriodEnd(report.getPeriodEnd());
+            result.setCreatedAt(publication.getCreatedAt());
             fillPublicationLabels(result, channel, destination);
             return result;
 
@@ -412,6 +417,11 @@ public class DashboardBattleService {
         result.setPublicationId(publication.getId());
         result.setChannelId(channel.getId());
         result.setDestinationId(destination.getId());
+        result.setReportId(report.getId());
+        result.setCompanyName(report.getCompany().getName());
+        result.setReportPeriodStart(report.getPeriodStart());
+        result.setReportPeriodEnd(report.getPeriodEnd());
+        result.setCreatedAt(publication.getCreatedAt());
         result.setStatus("RECALLED");
         result.setExternalId(publication.getExternalId());
         fillPublicationLabels(result, channel, destination);
@@ -447,6 +457,11 @@ public class DashboardBattleService {
             PublishChannel ch = pub.getDestination().getChannel();
             dto.setChannelId(ch.getId());
             dto.setDestinationId(pub.getDestination().getId());
+            dto.setReportId(pub.getReport().getId());
+            dto.setCompanyName(pub.getReport().getCompany().getName());
+            dto.setReportPeriodStart(pub.getReport().getPeriodStart());
+            dto.setReportPeriodEnd(pub.getReport().getPeriodEnd());
+            dto.setCreatedAt(pub.getCreatedAt());
             dto.setStatus(pub.getStatus());
             dto.setExternalId(pub.getExternalId());
             fillPublicationLabels(dto, ch, pub.getDestination());
