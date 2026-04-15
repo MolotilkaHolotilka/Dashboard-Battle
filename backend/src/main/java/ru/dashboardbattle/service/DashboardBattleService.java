@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import ru.dashboardbattle.dto.*;
+import ru.dashboardbattle.security.JwtService;
 import ru.dashboardbattle.entity.*;
 import ru.dashboardbattle.exception.ConflictException;
 import ru.dashboardbattle.exception.IntegrationException;
@@ -47,6 +48,7 @@ public class DashboardBattleService {
     private final WebhookPublishing webhookPublisher;
 
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     private final String moyskladTokenOverride;
     private final String telegramTokenOverride;
@@ -68,6 +70,7 @@ public class DashboardBattleService {
             DemoPagePublishing demoPagePublisher,
             WebhookPublishing webhookPublisher,
             PasswordEncoder passwordEncoder,
+            JwtService jwtService,
             @Value("${integration.moysklad.token-override:}") String moyskladTokenOverride,
             @Value("${integration.telegram.bot-token-override:}") String telegramTokenOverride,
             @Value("${integration.telegram.chat-id-override:}") String telegramChatIdOverride,
@@ -86,10 +89,34 @@ public class DashboardBattleService {
         this.demoPagePublisher = demoPagePublisher;
         this.webhookPublisher = webhookPublisher;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
         this.moyskladTokenOverride = moyskladTokenOverride;
         this.telegramTokenOverride = telegramTokenOverride;
         this.telegramChatIdOverride = telegramChatIdOverride;
         this.allowDebugHeaders = allowDebugHeaders;
+    }
+
+    public LoginResponseDto login(String email, String password) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + email));
+
+        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new ConflictException("Неверный пароль");
+        }
+
+        String token = jwtService.generateToken(user.getId(), user.getEmail());
+
+        LoginResponseDto dto = new LoginResponseDto();
+        dto.setToken(token);
+        dto.setUserId(user.getId());
+        dto.setEmail(user.getEmail());
+
+        companyRepository.findByUser_Id(user.getId()).stream().findFirst().ifPresent(company -> {
+            dto.setCompanyId(company.getId());
+            dto.setCompanyName(company.getName());
+        });
+
+        return dto;
     }
 
     public RegistrationResponseDto register(RegistrationRequestDto request) {

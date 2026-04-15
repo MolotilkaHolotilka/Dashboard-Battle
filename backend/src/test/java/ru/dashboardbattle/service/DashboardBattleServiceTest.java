@@ -7,6 +7,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import ru.dashboardbattle.dto.*;
+import ru.dashboardbattle.security.JwtService;
 import ru.dashboardbattle.entity.*;
 import ru.dashboardbattle.integration.DemoPagePublishing;
 import ru.dashboardbattle.integration.MoySkladClient;
@@ -44,6 +45,8 @@ class DashboardBattleServiceTest {
     @Mock private WebhookPublishing webhookPublisher;
     @Mock private PasswordEncoder passwordEncoder;
 
+    private final JwtService jwtService = new JwtService("test-secret-key-at-least-32-chars!!", 86400000L);
+
     private DashboardBattleService service;
 
     private Company testCompany;
@@ -66,6 +69,7 @@ class DashboardBattleServiceTest {
                 demoPagePublisher,
                 webhookPublisher,
                 passwordEncoder,
+                jwtService,
                 "",
                 "",
                 "",
@@ -221,6 +225,7 @@ class DashboardBattleServiceTest {
                 demoPagePublisher,
                 webhookPublisher,
                 passwordEncoder,
+                jwtService,
                 "override-token",
                 "",
                 "",

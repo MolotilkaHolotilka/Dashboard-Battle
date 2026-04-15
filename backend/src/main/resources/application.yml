@@ -31,6 +31,10 @@ management:
     health:
       show-details: when-authorized
 
+jwt:
+  secret: ${JWT_SECRET:change-me-in-production-at-least-32-chars!!}
+  expiration-ms: 86400000
+
 integration:
   allow-debug-headers: ${ALLOW_DEBUG_HEADERS:false}
   moysklad:

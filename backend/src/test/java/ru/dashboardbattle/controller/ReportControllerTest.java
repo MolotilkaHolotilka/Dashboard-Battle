@@ -15,12 +15,14 @@ import ru.dashboardbattle.repository.CompanyRepository;
 import ru.dashboardbattle.repository.MoySkladIntegrationRepository;
 import ru.dashboardbattle.repository.UserRepository;
 
+import org.springframework.security.test.context.support.WithMockUser;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser
 class ReportControllerTest {
 
     @Autowired MockMvc mockMvc;
