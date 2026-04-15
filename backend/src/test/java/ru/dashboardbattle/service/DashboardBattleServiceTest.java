@@ -332,6 +332,50 @@ class DashboardBattleServiceTest {
         verify(publicationRepository, times(2)).save(any(Publication.class));
     }
 
+    @Test
+    void publishTopN_shouldNormalizeTelegramTokenWithBotPrefix() {
+        TopNReport report = new TopNReport();
+        report.setId(60L);
+        report.setCompany(testCompany);
+        report.setStatus("CONFIRMED");
+        report.setEntries(new ArrayList<>());
+
+        PublishChannel channel = new PublishChannel();
+        channel.setId(1L);
+        channel.setCode("TELEGRAM");
+        channel.setName("Telegram");
+
+        PublishDestination destination = new PublishDestination();
+        destination.setId(6L);
+        destination.setChannel(channel);
+        destination.setCompany(testCompany);
+        destination.setLabel("Основной канал");
+        destination.setExternalIdentifier("-10012345");
+
+        TelegramIntegration tgIntegration = new TelegramIntegration();
+        tgIntegration.setBotTokenEncrypted("bot123456:ABCDEF");
+
+        PublicationResultDto mockResult = new PublicationResultDto();
+        mockResult.setStatus("PUBLISHED");
+        mockResult.setExternalId("123");
+
+        when(topNReportRepository.findById(60L)).thenReturn(Optional.of(report));
+        when(publishDestinationRepository.findById(6L)).thenReturn(Optional.of(destination));
+        when(telegramIntegrationRepository.findByCompany_Id(10L)).thenReturn(Optional.of(tgIntegration));
+        when(telegramPublisher.publish(any(), eq("123456:ABCDEF"), eq("-10012345"))).thenReturn(mockResult);
+        when(publicationRepository.save(any(Publication.class))).thenAnswer(inv -> {
+            Publication p = inv.getArgument(0);
+            p.setId(88L);
+            return p;
+        });
+        when(topNReportRepository.save(any(TopNReport.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        PublicationResultDto result = service.publishTopN(60L, 6L);
+
+        assertThat(result.getStatus()).isEqualTo("PUBLISHED");
+        verify(telegramPublisher).publish(any(), eq("123456:ABCDEF"), eq("-10012345"));
+    }
+
     // ========== Отмена публикации ==========
 
     @Test

@@ -232,7 +232,7 @@ public class DashboardBattleService {
                     created.setCompany(company);
                     return created;
                 });
-        integration.setBotTokenEncrypted(body.getBotToken().trim());
+        integration.setBotTokenEncrypted(normalizeTelegramBotToken(body.getBotToken()));
         integration.setChannelChatId(body.getChannelChatId().trim());
         integration.setStatus("ACTIVE");
         telegramIntegrationRepository.save(integration);
@@ -499,12 +499,12 @@ public class DashboardBattleService {
     private String resolveTelegramToken(TelegramIntegration integration) {
         String headerValue = readDebugHeader("X-Debug-Telegram-Token");
         if (StringUtils.hasText(headerValue)) {
-            return headerValue;
+            return normalizeTelegramBotToken(headerValue);
         }
         if (StringUtils.hasText(integration.getBotTokenEncrypted())) {
-            return integration.getBotTokenEncrypted();
+            return normalizeTelegramBotToken(integration.getBotTokenEncrypted());
         }
-        return telegramTokenOverride;
+        return normalizeTelegramBotToken(telegramTokenOverride);
     }
 
     private String resolveTelegramChatId(PublishDestination destination, TelegramIntegration integration) {
@@ -550,6 +550,17 @@ public class DashboardBattleService {
         String normalized = rawToken.trim();
         if (normalized.regionMatches(true, 0, "Bearer ", 0, "Bearer ".length())) {
             normalized = normalized.substring("Bearer ".length()).trim();
+        }
+        return normalized.replaceAll("\\s+", "");
+    }
+
+    private String normalizeTelegramBotToken(String rawToken) {
+        if (!StringUtils.hasText(rawToken)) {
+            return rawToken;
+        }
+        String normalized = rawToken.trim();
+        if (normalized.matches("(?i)^bot\\d+:.*")) {
+            normalized = normalized.substring(3).trim();
         }
         return normalized.replaceAll("\\s+", "");
     }
