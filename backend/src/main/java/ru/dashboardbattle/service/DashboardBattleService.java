@@ -431,9 +431,9 @@ public class DashboardBattleService {
     public List<TopNReportDto> listReports(Long companyId, String status) {
         List<TopNReport> reports;
         if (status != null && !status.isBlank()) {
-            reports = topNReportRepository.findByCompany_IdAndStatus(companyId, status);
+            reports = topNReportRepository.findByCompany_IdAndStatusOrderByCreatedAtDesc(companyId, status);
         } else {
-            reports = topNReportRepository.findByCompany_Id(companyId);
+            reports = topNReportRepository.findByCompany_IdOrderByCreatedAtDesc(companyId);
         }
         return reports.stream()
                 .map(TopNMapper::toDto)

@@ -104,6 +104,18 @@ public class TopNReport {
     }
 
     public void setEntries(List<TopNEntry> entries) {
-        this.entries = entries;
+        this.entries.clear();
+        if (entries == null) {
+            return;
+        }
+        entries.forEach(this::addEntry);
+    }
+
+    public void addEntry(TopNEntry entry) {
+        if (entry == null) {
+            return;
+        }
+        entry.setReport(this);
+        this.entries.add(entry);
     }
 }

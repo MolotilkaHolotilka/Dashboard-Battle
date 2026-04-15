@@ -305,13 +305,13 @@ class DashboardBattleServiceTest {
         r1.setStatus("CONFIRMED");
         r1.setEntries(new ArrayList<>());
 
-        when(topNReportRepository.findByCompany_IdAndStatus(10L, "CONFIRMED")).thenReturn(List.of(r1));
+        when(topNReportRepository.findByCompany_IdAndStatusOrderByCreatedAtDesc(10L, "CONFIRMED")).thenReturn(List.of(r1));
 
         List<TopNReportDto> result = service.listReports(10L, "CONFIRMED");
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getStatus()).isEqualTo("CONFIRMED");
-        verify(topNReportRepository).findByCompany_IdAndStatus(10L, "CONFIRMED");
+        verify(topNReportRepository).findByCompany_IdAndStatusOrderByCreatedAtDesc(10L, "CONFIRMED");
     }
 
     @Test
@@ -328,12 +328,12 @@ class DashboardBattleServiceTest {
         r2.setStatus("PUBLISHED");
         r2.setEntries(new ArrayList<>());
 
-        when(topNReportRepository.findByCompany_Id(10L)).thenReturn(List.of(r1, r2));
+        when(topNReportRepository.findByCompany_IdOrderByCreatedAtDesc(10L)).thenReturn(List.of(r1, r2));
 
         List<TopNReportDto> result = service.listReports(10L, null);
 
         assertThat(result).hasSize(2);
-        verify(topNReportRepository).findByCompany_Id(10L);
+        verify(topNReportRepository).findByCompany_IdOrderByCreatedAtDesc(10L);
     }
 
     @Test

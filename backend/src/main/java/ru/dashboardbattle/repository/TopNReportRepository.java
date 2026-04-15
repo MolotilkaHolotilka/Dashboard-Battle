@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface TopNReportRepository extends JpaRepository<TopNReport, Long> {
 
-    List<TopNReport> findByCompany_Id(Long companyId);
+    List<TopNReport> findByCompany_IdOrderByCreatedAtDesc(Long companyId);
 
-    List<TopNReport> findByCompany_IdAndStatus(Long companyId, String status);
+    List<TopNReport> findByCompany_IdAndStatusOrderByCreatedAtDesc(Long companyId, String status);
 }
