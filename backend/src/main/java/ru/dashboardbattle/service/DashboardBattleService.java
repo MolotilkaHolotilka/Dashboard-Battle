@@ -124,6 +124,19 @@ public class DashboardBattleService {
         return dto;
     }
 
+    public List<CompanySummaryDto> listCompaniesByUser(Long userId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + userId));
+        return companyRepository.findByUser_Id(userId).stream()
+                .map(company -> {
+                    CompanySummaryDto dto = new CompanySummaryDto();
+                    dto.setId(company.getId());
+                    dto.setName(company.getName());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
     public List<PublishChannelDto> listPublishChannels() {
         return publishChannelRepository.findAll().stream()
                 .map(ch -> {

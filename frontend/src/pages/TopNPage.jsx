@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import client from '../api/client';
+import useUserCompanies from '../hooks/useUserCompanies';
 import './TopNPage.css';
 
 const STATUS_LABEL = {
@@ -22,6 +23,7 @@ function TopNPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const { companies } = useUserCompanies();
 
   async function handleRequest(e) {
     e.preventDefault();
@@ -59,15 +61,19 @@ function TopNPage() {
 
       <form className="topn-form" onSubmit={handleRequest}>
         <label>
-          ID компании
-          <input
-            type="number"
+          Компания
+          <select
             value={companyId}
             onChange={e => setCompanyId(e.target.value)}
-            placeholder="из регистрации"
             required
-            min="1"
-          />
+          >
+            <option value="">— выберите компанию —</option>
+            {companies.map(company => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           Количество (N)

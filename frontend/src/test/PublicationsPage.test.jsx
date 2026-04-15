@@ -6,12 +6,16 @@ import client from '../api/client';
 vi.mock('../api/client');
 
 const mockPubs = [
-  { publicationId: 77, channelId: 1, destinationId: 5, status: 'PUBLISHED', externalId: 'tg-abc' },
-  { publicationId: 78, channelId: 1, destinationId: 5, status: 'RECALLED',  externalId: 'tg-xyz' },
+  { publicationId: 77, channelId: 1, channelCode: 'TELEGRAM', destinationId: 5, status: 'PUBLISHED', externalId: 'tg-abc' },
+  { publicationId: 78, channelId: 1, channelCode: 'TELEGRAM', destinationId: 5, status: 'RECALLED',  externalId: 'tg-xyz' },
 ];
 
 describe('PublicationsPage', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    localStorage.setItem('companySnapshots', JSON.stringify([{ id: 10, name: 'Тестовая компания' }]));
+  });
 
   it('рендерит обе секции страницы', () => {
     render(<PublicationsPage />);
@@ -20,10 +24,15 @@ describe('PublicationsPage', () => {
   });
 
   it('список публикаций отображает строки и статус-бейджи', async () => {
-    client.get = vi.fn().mockResolvedValue({ data: mockPubs });
+    client.get = vi.fn().mockImplementation((url) => {
+      if (url === '/publications') return Promise.resolve({ data: mockPubs });
+      if (url === '/companies/10') return Promise.resolve({ data: { id: 10, name: 'Тестовая компания' } });
+      if (url === '/publish/destinations') return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: [] });
+    });
 
     render(<PublicationsPage />);
-    fireEvent.change(screen.getByLabelText('ID компании'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Компания'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /загрузить/i }));
 
     await waitFor(() => expect(screen.getByText('tg-abc')).toBeInTheDocument());
@@ -32,10 +41,15 @@ describe('PublicationsPage', () => {
   });
 
   it('кнопка Отменить есть только у PUBLISHED публикаций', async () => {
-    client.get = vi.fn().mockResolvedValue({ data: mockPubs });
+    client.get = vi.fn().mockImplementation((url) => {
+      if (url === '/publications') return Promise.resolve({ data: mockPubs });
+      if (url === '/companies/10') return Promise.resolve({ data: { id: 10, name: 'Тестовая компания' } });
+      if (url === '/publish/destinations') return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: [] });
+    });
 
     render(<PublicationsPage />);
-    fireEvent.change(screen.getByLabelText('ID компании'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Компания'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /загрузить/i }));
 
     await waitFor(() => expect(screen.getByText('tg-abc')).toBeInTheDocument());
@@ -45,13 +59,18 @@ describe('PublicationsPage', () => {
   });
 
   it('после отмены статус строки обновляется на RECALLED', async () => {
-    client.get = vi.fn().mockResolvedValue({ data: mockPubs });
+    client.get = vi.fn().mockImplementation((url) => {
+      if (url === '/publications') return Promise.resolve({ data: mockPubs });
+      if (url === '/companies/10') return Promise.resolve({ data: { id: 10, name: 'Тестовая компания' } });
+      if (url === '/publish/destinations') return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: [] });
+    });
     client.post = vi.fn().mockResolvedValue({
-      data: { publicationId: 77, channelId: 1, destinationId: 5, status: 'RECALLED', externalId: 'tg-abc' },
+      data: { publicationId: 77, channelId: 1, channelCode: 'TELEGRAM', destinationId: 5, status: 'RECALLED', externalId: 'tg-abc' },
     });
 
     render(<PublicationsPage />);
-    fireEvent.change(screen.getByLabelText('ID компании'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Компания'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /загрузить/i }));
 
     await waitFor(() => screen.getByRole('button', { name: /отменить/i }));
@@ -62,10 +81,15 @@ describe('PublicationsPage', () => {
   });
 
   it('пустой список показывает сообщение', async () => {
-    client.get = vi.fn().mockResolvedValue({ data: [] });
+    client.get = vi.fn().mockImplementation((url) => {
+      if (url === '/publications') return Promise.resolve({ data: [] });
+      if (url === '/companies/10') return Promise.resolve({ data: { id: 10, name: 'Тестовая компания' } });
+      if (url === '/publish/destinations') return Promise.resolve({ data: [] });
+      return Promise.resolve({ data: [] });
+    });
 
     render(<PublicationsPage />);
-    fireEvent.change(screen.getByLabelText('ID компании'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Компания'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /загрузить/i }));
 
     await waitFor(() =>

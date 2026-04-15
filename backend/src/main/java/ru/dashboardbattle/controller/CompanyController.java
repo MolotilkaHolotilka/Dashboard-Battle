@@ -5,6 +5,8 @@ import org.springframework.web.bind.annotation.*;
 import ru.dashboardbattle.dto.CompanySummaryDto;
 import ru.dashboardbattle.service.DashboardBattleService;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/companies")
 public class CompanyController {
@@ -18,5 +20,10 @@ public class CompanyController {
     @GetMapping("/{id}")
     public ResponseEntity<CompanySummaryDto> getCompany(@PathVariable Long id) {
         return ResponseEntity.ok(service.getCompanySummary(id));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<CompanySummaryDto>> listCompaniesByUser(@RequestParam Long userId) {
+        return ResponseEntity.ok(service.listCompaniesByUser(userId));
     }
 }

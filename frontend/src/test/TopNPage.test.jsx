@@ -18,11 +18,15 @@ const mockReport = {
 };
 
 describe('TopNPage', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    localStorage.setItem('companySnapshots', JSON.stringify([{ id: 10, name: 'Тестовая компания' }]));
+  });
 
-  it('рендерит форму с полями companyId и N', () => {
+  it('рендерит форму с полями компании и N', () => {
     render(<TopNPage />);
-    expect(screen.getByText('ID компании')).toBeInTheDocument();
+    expect(screen.getByText('Компания')).toBeInTheDocument();
     expect(screen.getByText('Количество (N)')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /запросить/i })).toBeInTheDocument();
   });
@@ -31,7 +35,7 @@ describe('TopNPage', () => {
     client.post = vi.fn().mockResolvedValue({ data: mockReport });
 
     render(<TopNPage />);
-    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Компания'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /запросить/i }));
 
     await waitFor(() => expect(screen.getByText('Иванов И.')).toBeInTheDocument());
@@ -43,7 +47,7 @@ describe('TopNPage', () => {
     client.post = vi.fn().mockResolvedValue({ data: mockReport });
 
     render(<TopNPage />);
-    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Компания'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /запросить/i }));
 
     await waitFor(() =>
@@ -57,7 +61,7 @@ describe('TopNPage', () => {
       .mockResolvedValueOnce({ data: { ...mockReport, status: 'CONFIRMED' } });
 
     render(<TopNPage />);
-    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Компания'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /запросить/i }));
 
     await waitFor(() =>
@@ -71,15 +75,15 @@ describe('TopNPage', () => {
 
   it('при ошибке 404 показывает сообщение', async () => {
     client.post = vi.fn().mockRejectedValue({
-      response: { data: { message: 'Компания не найдена: 999' } },
+      response: { data: { message: 'Компания не найдена: 10' } },
     });
 
     render(<TopNPage />);
-    fireEvent.change(screen.getAllByRole('spinbutton')[0], { target: { value: '999' } });
+    fireEvent.change(screen.getByLabelText('Компания'), { target: { value: '10' } });
     fireEvent.click(screen.getByRole('button', { name: /запросить/i }));
 
     await waitFor(() =>
-      expect(screen.getByText('Компания не найдена: 999')).toBeInTheDocument()
+      expect(screen.getByText('Компания не найдена: 10')).toBeInTheDocument()
     );
   });
 });

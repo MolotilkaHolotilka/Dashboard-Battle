@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import client from '../api/client';
+import { saveCompanySnapshot } from '../session';
 import './RegisterPage.css';
 
 const INITIAL = { email: '', password: '', companyName: '' };
@@ -22,10 +23,15 @@ function RegisterPage() {
     try {
       const { data } = await client.post('/auth/register', form);
       setResult(data);
+      if (data.userId != null) {
+        localStorage.setItem('lastUserId', String(data.userId));
+      }
       if (data.companyId != null) {
         localStorage.setItem('lastCompanyId', String(data.companyId));
         localStorage.setItem('lastCompanyName', data.companyName ?? '');
+        saveCompanySnapshot({ id: data.companyId, name: data.companyName });
       }
+      window.dispatchEvent(new Event('registration:changed'));
       setForm(INITIAL);
     } catch (err) {
       const msg = err.response?.data?.message ?? 'Ошибка соединения с сервером';

@@ -17,8 +17,9 @@
   margin-bottom: 1.25rem;
 }
 
-.company-bar input {
-  width: 120px;
+.company-bar select {
+  width: 320px;
+  max-width: 100%;
 }
 
 .panel {

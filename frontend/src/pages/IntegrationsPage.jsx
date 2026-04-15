@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import client from '../api/client';
+import useUserCompanies from '../hooks/useUserCompanies';
 import './IntegrationsPage.css';
 
 function IntegrationsPage() {
@@ -16,6 +17,7 @@ function IntegrationsPage() {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { companies, refreshCompanies } = useUserCompanies();
 
   async function refreshLists() {
     if (!companyId) return;
@@ -29,6 +31,7 @@ function IntegrationsPage() {
       setChannels(ch.data);
       setDestinations(dest.data);
       setIntegrationsInfo(integ.data);
+      localStorage.setItem('lastCompanyId', String(companyId));
     } catch (err) {
       setError(err.response?.data?.message ?? 'Не удалось загрузить данные');
     }
@@ -111,19 +114,27 @@ function IntegrationsPage() {
     <div className="integrations-page">
       <h2>Интеграции и каналы публикации</h2>
       <p className="intro">
-        Укажите ID компании (после регистрации он показывается на главной и сохраняется в браузере).
+        Выберите компанию из списка ваших компаний.
         Токены уходят на сервер по HTTPS и не отображаются повторно в ответах API.
       </p>
 
       <label className="company-bar">
-        ID компании
-        <input
-          type="number"
+        Компания
+        <select
           value={companyId}
           onChange={e => setCompanyId(e.target.value)}
-          min="1"
           required
-        />
+        >
+          <option value="">— выберите компанию —</option>
+          {companies.map(company => (
+            <option key={company.id} value={company.id}>
+              {company.name}
+            </option>
+          ))}
+        </select>
+        <button type="button" onClick={refreshCompanies} disabled={loading}>
+          Обновить компании
+        </button>
         <button type="button" onClick={refreshLists} disabled={!companyId || loading}>
           Обновить списки
         </button>

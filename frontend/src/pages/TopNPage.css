@@ -20,7 +20,8 @@
   color: #444;
 }
 
-.topn-form input {
+.topn-form input,
+.topn-form select {
   width: 140px;
   padding: 0.5rem 0.7rem;
   border: 1px solid #ccc;
@@ -28,7 +29,13 @@
   font-size: 1rem;
 }
 
-.topn-form input:focus {
+.topn-form select {
+  width: 240px;
+  max-width: 100%;
+}
+
+.topn-form input:focus,
+.topn-form select:focus {
   outline: none;
   border-color: #4f46e5;
 }

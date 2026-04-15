@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import client from '../api/client';
+import useUserCompanies from '../hooks/useUserCompanies';
 import './PublicationsPage.css';
 
 const STATUS_LABEL = {
@@ -39,6 +40,7 @@ function PublicationsPage() {
   const [listError, setListError] = useState(null);
   const [listLoading, setListLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
+  const { companies, refreshCompanies } = useUserCompanies();
 
   const loadContext = useCallback(async (cid) => {
     if (!cid) {
@@ -60,6 +62,9 @@ function PublicationsPage() {
   }, []);
 
   useEffect(() => {
+    if (workspaceCompanyId) {
+      localStorage.setItem('lastCompanyId', String(workspaceCompanyId));
+    }
     loadContext(workspaceCompanyId);
   }, [workspaceCompanyId, loadContext]);
 
@@ -150,17 +155,25 @@ function PublicationsPage() {
   return (
     <div className="pub-page">
       <section className="pub-section workspace">
-        <h2>Компания для операций на этой странице</h2>
+        <h2>Компания для получения списка ТОП-N сотрудников</h2>
         <div className="workspace-bar">
           <label>
-            ID компании
-            <input
-              type="number"
+            Компания
+            <select
               value={workspaceCompanyId}
               onChange={e => setWorkspaceCompanyId(e.target.value)}
-              min="1"
-            />
+            >
+              <option value="">— выберите компанию —</option>
+              {companies.map(company => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </select>
           </label>
+          <button type="button" onClick={refreshCompanies}>
+            Обновить компании
+          </button>
           {companyLabel && (
             <span className="company-hint">{companyLabel}</span>
           )}
