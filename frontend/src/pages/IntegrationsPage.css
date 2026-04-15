@@ -61,6 +61,13 @@
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   box-sizing: border-box;
+  max-width: 100%;
+}
+
+.integrations-page textarea {
+  resize: vertical;
+  min-height: 90px;
+  max-height: 220px;
 }
 
 .dest-form {
@@ -81,4 +88,34 @@
 .hint-extra {
   font-size: 0.85rem;
   color: #64748b;
+}
+
+.secret-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.secret-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.toggle-secret {
+  white-space: nowrap;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #1e293b;
+  border-radius: 6px;
+  padding: 0.48rem 0.65rem;
+  cursor: pointer;
+}
+
+.dest-link {
+  margin-left: 0.5rem;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.dest-link:hover {
+  text-decoration: underline;
 }

@@ -8,6 +8,8 @@ function IntegrationsPage() {
   const [moyskladToken, setMoyskladToken] = useState('');
   const [telegramBot, setTelegramBot] = useState('');
   const [telegramChat, setTelegramChat] = useState('');
+  const [showMoyskladToken, setShowMoyskladToken] = useState(false);
+  const [showTelegramToken, setShowTelegramToken] = useState(false);
   const [destLabel, setDestLabel] = useState('');
   const [destChannel, setDestChannel] = useState('TELEGRAM');
   const [destExtra, setDestExtra] = useState('');
@@ -110,6 +112,19 @@ function IntegrationsPage() {
     }
   }
 
+  function getDestinationLink(destination) {
+    const value = destination.externalIdentifier?.trim();
+    if (!value) return null;
+    if (destination.channelCode === 'WEBHOOK' && /^https?:\/\//i.test(value)) {
+      return value;
+    }
+    if (destination.channelCode === 'TELEGRAM') {
+      if (/^https?:\/\//i.test(value)) return value;
+      if (value.startsWith('@')) return `https://t.me/${value.slice(1)}`;
+    }
+    return null;
+  }
+
   return (
     <div className="integrations-page">
       <h2>Интеграции и каналы публикации</h2>
@@ -157,13 +172,23 @@ function IntegrationsPage() {
           <form onSubmit={saveMoysklad}>
             <label>
               Токен доступа JSON API
-              <textarea
-                value={moyskladToken}
-                onChange={e => setMoyskladToken(e.target.value)}
-                rows={3}
-                required
-                placeholder="Вставьте токен из личного кабинета МойСклад"
-              />
+              <div className="secret-row">
+                <input
+                  type={showMoyskladToken ? 'text' : 'password'}
+                  value={moyskladToken}
+                  onChange={e => setMoyskladToken(e.target.value)}
+                  required
+                  placeholder="Вставьте токен из личного кабинета МойСклад"
+                  className="secret-input"
+                />
+                <button
+                  type="button"
+                  className="toggle-secret"
+                  onClick={() => setShowMoyskladToken(value => !value)}
+                >
+                  {showMoyskladToken ? 'Скрыть' : 'Показать'}
+                </button>
+              </div>
             </label>
             <button type="submit" disabled={loading || !companyId}>Сохранить</button>
           </form>
@@ -174,12 +199,22 @@ function IntegrationsPage() {
           <form onSubmit={saveTelegram}>
             <label>
               Токен бота
-              <textarea
-                value={telegramBot}
-                onChange={e => setTelegramBot(e.target.value)}
-                rows={2}
-                required
-              />
+              <div className="secret-row">
+                <input
+                  type={showTelegramToken ? 'text' : 'password'}
+                  value={telegramBot}
+                  onChange={e => setTelegramBot(e.target.value)}
+                  required
+                  className="secret-input"
+                />
+                <button
+                  type="button"
+                  className="toggle-secret"
+                  onClick={() => setShowTelegramToken(value => !value)}
+                >
+                  {showTelegramToken ? 'Скрыть' : 'Показать'}
+                </button>
+              </div>
             </label>
             <label>
               ID канала (chat_id)
@@ -223,15 +258,23 @@ function IntegrationsPage() {
         <section className="panel">
           <h3>Ваши места публикации</h3>
           <ul className="dest-list">
-            {destinations.map(d => (
-              <li key={d.id}>
-                <strong>{d.label}</strong> — {d.channelName}{' '}
-                <span className="hint-code">#{d.id}</span>
-                {d.externalIdentifier && (
-                  <span className="hint-extra"> · {d.externalIdentifier}</span>
-                )}
-              </li>
-            ))}
+            {destinations.map(d => {
+              const link = getDestinationLink(d);
+              return (
+                <li key={d.id}>
+                  <strong>{d.label}</strong> — {d.channelName}{' '}
+                  <span className="hint-code">#{d.id}</span>
+                  {d.externalIdentifier && (
+                    <span className="hint-extra"> · {d.externalIdentifier}</span>
+                  )}
+                  {link && (
+                    <a className="dest-link" href={link} target="_blank" rel="noreferrer">
+                      Перейти
+                    </a>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
