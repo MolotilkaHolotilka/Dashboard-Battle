@@ -210,7 +210,7 @@ public class DashboardBattleService {
                     created.setCompany(company);
                     return created;
                 });
-        integration.setTokenEncrypted(body.getAccessToken().trim());
+        integration.setTokenEncrypted(normalizeMoyskladToken(body.getAccessToken()));
         integration.setStatus("ACTIVE");
         moyskladIntegrationRepository.save(integration);
         return getIntegrationData(body.getCompanyId());
@@ -501,9 +501,10 @@ public class DashboardBattleService {
         if (StringUtils.hasText(headerValue)) {
             return headerValue;
         }
-        return StringUtils.hasText(telegramTokenOverride)
-                ? telegramTokenOverride
-                : integration.getBotTokenEncrypted();
+        if (StringUtils.hasText(integration.getBotTokenEncrypted())) {
+            return integration.getBotTokenEncrypted();
+        }
+        return telegramTokenOverride;
     }
 
     private String resolveTelegramChatId(PublishDestination destination, TelegramIntegration integration) {
@@ -511,23 +512,24 @@ public class DashboardBattleService {
         if (StringUtils.hasText(headerValue)) {
             return headerValue;
         }
-        if (StringUtils.hasText(telegramChatIdOverride)) {
-            return telegramChatIdOverride;
-        }
         if (StringUtils.hasText(destination.getExternalIdentifier())) {
             return destination.getExternalIdentifier();
         }
-        return integration.getChannelChatId();
+        if (StringUtils.hasText(integration.getChannelChatId())) {
+            return integration.getChannelChatId();
+        }
+        return telegramChatIdOverride;
     }
 
     private String resolveMoySkladToken(MoySkladIntegration integration) {
         String headerValue = readDebugHeader("X-Debug-Moysklad-Token");
         if (StringUtils.hasText(headerValue)) {
-            return headerValue;
+            return normalizeMoyskladToken(headerValue);
         }
-        return StringUtils.hasText(moyskladTokenOverride)
-                ? moyskladTokenOverride
-                : integration.getTokenEncrypted();
+        if (StringUtils.hasText(integration.getTokenEncrypted())) {
+            return normalizeMoyskladToken(integration.getTokenEncrypted());
+        }
+        return normalizeMoyskladToken(moyskladTokenOverride);
     }
 
     private String readDebugHeader(String headerName) {
@@ -539,5 +541,16 @@ public class DashboardBattleService {
             return servletAttrs.getRequest().getHeader(headerName);
         }
         return null;
+    }
+
+    private String normalizeMoyskladToken(String rawToken) {
+        if (!StringUtils.hasText(rawToken)) {
+            return rawToken;
+        }
+        String normalized = rawToken.trim();
+        if (normalized.regionMatches(true, 0, "Bearer ", 0, "Bearer ".length())) {
+            normalized = normalized.substring("Bearer ".length()).trim();
+        }
+        return normalized.replaceAll("\\s+", "");
     }
 }

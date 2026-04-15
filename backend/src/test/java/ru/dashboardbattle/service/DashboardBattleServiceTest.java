@@ -176,6 +176,85 @@ class DashboardBattleServiceTest {
     }
 
     @Test
+    void requestTopN_shouldNormalizeBearerPrefixInStoredToken() {
+        MoySkladIntegration msIntegration = new MoySkladIntegration();
+        msIntegration.setTokenEncrypted("Bearer token123");
+
+        TopNReportDto mockFetched = new TopNReportDto();
+        mockFetched.setPeriodStart(LocalDate.of(2026, 2, 1));
+        mockFetched.setPeriodEnd(LocalDate.of(2026, 3, 1));
+        mockFetched.setStatus("PENDING");
+        mockFetched.setEntries(List.of(
+                new TopNEntryDto("Иванов", "ms-001", new BigDecimal("1500000"), new BigDecimal("350000"), "Ноутбук", 1)
+        ));
+
+        when(companyRepository.findById(10L)).thenReturn(Optional.of(testCompany));
+        when(moyskladIntegrationRepository.findByCompany_Id(10L)).thenReturn(Optional.of(msIntegration));
+        when(moySkladClient.fetchTopN("token123", 5)).thenReturn(mockFetched);
+        when(topNReportRepository.save(any(TopNReport.class))).thenAnswer(inv -> {
+            TopNReport r = inv.getArgument(0);
+            r.setId(51L);
+            r.setCreatedAt(Instant.now());
+            return r;
+        });
+
+        TopNReportDto result = service.requestTopN(10L, 5);
+
+        assertThat(result.getId()).isEqualTo(51L);
+        verify(moySkladClient).fetchTopN("token123", 5);
+    }
+
+    @Test
+    void requestTopN_shouldPreferIntegrationTokenOverEnvOverride() {
+        DashboardBattleService serviceWithOverride = new DashboardBattleService(
+                userRepository,
+                companyRepository,
+                moyskladIntegrationRepository,
+                telegramIntegrationRepository,
+                topNReportRepository,
+                topNEntryRepository,
+                publishChannelRepository,
+                publishDestinationRepository,
+                publicationRepository,
+                moySkladClient,
+                telegramPublisher,
+                demoPagePublisher,
+                webhookPublisher,
+                passwordEncoder,
+                "override-token",
+                "",
+                "",
+                false
+        );
+
+        MoySkladIntegration msIntegration = new MoySkladIntegration();
+        msIntegration.setTokenEncrypted("db-token");
+
+        TopNReportDto mockFetched = new TopNReportDto();
+        mockFetched.setPeriodStart(LocalDate.of(2026, 2, 1));
+        mockFetched.setPeriodEnd(LocalDate.of(2026, 3, 1));
+        mockFetched.setStatus("PENDING");
+        mockFetched.setEntries(List.of(
+                new TopNEntryDto("Иванов", "ms-001", new BigDecimal("1500000"), new BigDecimal("350000"), "Ноутбук", 1)
+        ));
+
+        when(companyRepository.findById(10L)).thenReturn(Optional.of(testCompany));
+        when(moyskladIntegrationRepository.findByCompany_Id(10L)).thenReturn(Optional.of(msIntegration));
+        when(moySkladClient.fetchTopN("db-token", 5)).thenReturn(mockFetched);
+        when(topNReportRepository.save(any(TopNReport.class))).thenAnswer(inv -> {
+            TopNReport r = inv.getArgument(0);
+            r.setId(52L);
+            r.setCreatedAt(Instant.now());
+            return r;
+        });
+
+        TopNReportDto result = serviceWithOverride.requestTopN(10L, 5);
+
+        assertThat(result.getId()).isEqualTo(52L);
+        verify(moySkladClient).fetchTopN("db-token", 5);
+    }
+
+    @Test
     void requestTopN_shouldThrowIfCompanyNotFound() {
         when(companyRepository.findById(999L)).thenReturn(Optional.empty());
 
