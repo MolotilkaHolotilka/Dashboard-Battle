@@ -1,15 +1,16 @@
 import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import client from '../api/client';
-import { saveCompanySnapshot } from '../session';
+import { saveToken, saveCompanySnapshot } from '../session';
 import './RegisterPage.css';
 
 const INITIAL = { email: '', password: '', companyName: '' };
 
 function RegisterPage() {
   const [form, setForm] = useState(INITIAL);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -18,21 +19,22 @@ function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
-    setResult(null);
     setLoading(true);
     try {
-      const { data } = await client.post('/auth/register', form);
-      setResult(data);
-      if (data.userId != null) {
-        localStorage.setItem('lastUserId', String(data.userId));
+      await client.post('/auth/register', form);
+      const { data: loginData } = await client.post('/auth/login', {
+        email: form.email,
+        password: form.password,
+      });
+      saveToken(loginData.token);
+      if (loginData.userId) localStorage.setItem('lastUserId', String(loginData.userId));
+      if (loginData.companyId) {
+        localStorage.setItem('lastCompanyId', String(loginData.companyId));
+        localStorage.setItem('lastCompanyName', loginData.companyName ?? '');
+        saveCompanySnapshot({ id: loginData.companyId, name: loginData.companyName });
       }
-      if (data.companyId != null) {
-        localStorage.setItem('lastCompanyId', String(data.companyId));
-        localStorage.setItem('lastCompanyName', data.companyName ?? '');
-        saveCompanySnapshot({ id: data.companyId, name: data.companyName });
-      }
-      window.dispatchEvent(new Event('registration:changed'));
-      setForm(INITIAL);
+      window.dispatchEvent(new Event('auth:login'));
+      navigate('/integrations');
     } catch (err) {
       const msg = err.response?.data?.message ?? 'Ошибка соединения с сервером';
       setError(msg);
@@ -79,27 +81,15 @@ function RegisterPage() {
           />
         </label>
         <button type="submit" disabled={loading}>
-          {loading ? 'Загрузка...' : 'Зарегистрироваться'}
+          {loading ? 'Регистрирую...' : 'Зарегистрироваться'}
         </button>
       </form>
 
-      {error && (
-        <div className="alert alert-error">{error}</div>
-      )}
+      {error && <div className="alert alert-error">{error}</div>}
 
-      {result && (
-        <div className="alert alert-success">
-          <strong>Готово!</strong>
-          <table className="result-table">
-            <tbody>
-              <tr><td>ID пользователя</td><td>{result.userId}</td></tr>
-              <tr><td>ID компании</td><td>{result.companyId}</td></tr>
-              <tr><td>Email</td><td>{result.email}</td></tr>
-              <tr><td>Компания</td><td>{result.companyName}</td></tr>
-            </tbody>
-          </table>
-        </div>
-      )}
+      <p className="register-hint">
+        Уже есть аккаунт? <Link to="/login">Войти</Link>
+      </p>
     </div>
   );
 }

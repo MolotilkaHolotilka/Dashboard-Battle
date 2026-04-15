@@ -46,6 +46,22 @@ body {
   color: #fff;
 }
 
+.nav-logout {
+  background: none;
+  border: 1px solid #555;
+  color: #ccc;
+  padding: 0.3rem 0.8rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.nav-logout:hover {
+  border-color: #f87171;
+  color: #f87171;
+}
+
 .content {
   max-width: 860px;
   margin: 2rem auto;

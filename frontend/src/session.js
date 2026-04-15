@@ -1,3 +1,26 @@
+export function saveToken(token) {
+  if (token) {
+    localStorage.setItem('authToken', token);
+  } else {
+    localStorage.removeItem('authToken');
+  }
+}
+
+export function getToken() {
+  return localStorage.getItem('authToken') || null;
+}
+
+export function isAuthenticated() {
+  return getToken() !== null;
+}
+
+export function clearAuth() {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('lastUserId');
+  localStorage.removeItem('lastCompanyId');
+  localStorage.removeItem('lastCompanyName');
+}
+
 export function getLastUserId() {
   const raw = localStorage.getItem('lastUserId');
   if (!raw) return null;
