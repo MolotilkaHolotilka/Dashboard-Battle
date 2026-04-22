@@ -9,6 +9,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import ru.dashboardbattle.dto.*;
 import ru.dashboardbattle.security.JwtService;
 import ru.dashboardbattle.entity.*;
+import ru.dashboardbattle.exception.ConflictException;
 import ru.dashboardbattle.integration.DemoPagePublishing;
 import ru.dashboardbattle.integration.MoySkladClient;
 import ru.dashboardbattle.integration.TelegramPublisher;
@@ -287,7 +288,59 @@ class DashboardBattleServiceTest {
         verify(topNReportRepository).save(argThat(r -> "CONFIRMED".equals(r.getStatus())));
     }
 
+    @Test
+    void archiveTopN_shouldChangeStatusToArchived() {
+        TopNReport report = new TopNReport();
+        report.setId(51L);
+        report.setCompany(testCompany);
+        report.setStatus("CONFIRMED");
+        report.setEntries(new ArrayList<>());
+
+        when(topNReportRepository.findById(51L)).thenReturn(Optional.of(report));
+        when(topNReportRepository.save(any(TopNReport.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TopNReportDto result = service.archiveTopN(51L);
+
+        assertThat(result.getStatus()).isEqualTo("ARCHIVED");
+        verify(topNReportRepository).save(argThat(r -> "ARCHIVED".equals(r.getStatus())));
+    }
+
+    @Test
+    void archiveTopN_shouldRejectPublishingReport() {
+        TopNReport report = new TopNReport();
+        report.setId(52L);
+        report.setCompany(testCompany);
+        report.setStatus("PUBLISHING");
+        report.setEntries(new ArrayList<>());
+
+        when(topNReportRepository.findById(52L)).thenReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> service.archiveTopN(52L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("архивировать");
+
+        verify(topNReportRepository, never()).save(any(TopNReport.class));
+    }
+
     // ========== Публикация ==========
+
+    @Test
+    void publishTopN_shouldRejectPendingReport() {
+        TopNReport report = new TopNReport();
+        report.setId(49L);
+        report.setCompany(testCompany);
+        report.setStatus("PENDING");
+        report.setEntries(new ArrayList<>());
+
+        when(topNReportRepository.findById(49L)).thenReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> service.publishTopN(49L, 5L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("только для подтверждённых рейтингов");
+
+        verify(publishDestinationRepository, never()).findById(anyLong());
+        verify(publicationRepository, never()).save(any(Publication.class));
+    }
 
     @Test
     void publishTopN_shouldCallTelegramAndSavePublication() {
@@ -456,12 +509,12 @@ class DashboardBattleServiceTest {
         r2.setStatus("PUBLISHED");
         r2.setEntries(new ArrayList<>());
 
-        when(topNReportRepository.findByCompany_IdOrderByCreatedAtDesc(10L)).thenReturn(List.of(r1, r2));
+        when(topNReportRepository.findByCompany_IdAndStatusNotOrderByCreatedAtDesc(10L, "ARCHIVED")).thenReturn(List.of(r1, r2));
 
         List<TopNReportDto> result = service.listReports(10L, null);
 
         assertThat(result).hasSize(2);
-        verify(topNReportRepository).findByCompany_IdOrderByCreatedAtDesc(10L);
+        verify(topNReportRepository).findByCompany_IdAndStatusNotOrderByCreatedAtDesc(10L, "ARCHIVED");
     }
 
     @Test

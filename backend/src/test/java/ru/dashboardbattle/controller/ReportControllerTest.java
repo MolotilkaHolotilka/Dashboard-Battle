@@ -88,6 +88,26 @@ class ReportControllerTest {
     }
 
     @Test
+    void archiveTopN_shouldArchiveAndHideFromDefaultList() throws Exception {
+        String response = mockMvc.perform(post("/api/reports/top-n/request/" + companyId)
+                        .param("topN", "3"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        Long reportId = objectMapper.readTree(response).get("id").asLong();
+
+        mockMvc.perform(post("/api/reports/top-n/" + reportId + "/archive"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ARCHIVED"));
+
+        mockMvc.perform(get("/api/reports/top-n")
+                        .param("companyId", String.valueOf(companyId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
     void listReports_shouldReturnEmptyListForUnknownCompany() throws Exception {
         mockMvc.perform(get("/api/reports/top-n")
                         .param("companyId", "88888"))

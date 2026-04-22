@@ -25,7 +25,7 @@ function LoginPage() {
       if (data.companyId) {
         localStorage.setItem('lastCompanyId', String(data.companyId));
         localStorage.setItem('lastCompanyName', data.companyName ?? '');
-        saveCompanySnapshot({ id: data.companyId, name: data.companyName });
+        saveCompanySnapshot({ id: data.companyId, name: data.companyName }, data.userId);
       }
       window.dispatchEvent(new Event('auth:login'));
       navigate('/integrations');

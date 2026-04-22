@@ -33,4 +33,10 @@ public class PublishSetupController {
     public ResponseEntity<PublishDestinationDto> createDestination(@RequestBody CreatePublishDestinationRequestDto body) {
         return ResponseEntity.ok(service.createPublishDestination(body));
     }
+
+    @DeleteMapping("/destinations/{id}")
+    public ResponseEntity<Void> deleteDestination(@PathVariable Long id) {
+        service.deletePublishDestination(id);
+        return ResponseEntity.noContent().build();
+    }
 }

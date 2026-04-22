@@ -14,29 +14,33 @@ function mergeCompanies(primary, secondary) {
 }
 
 export default function useUserCompanies() {
-  const [companies, setCompanies] = useState(() => getCompanySnapshots());
+  const [companies, setCompanies] = useState(() => getCompanySnapshots(getLastUserId()));
 
   const refreshCompanies = useCallback(async () => {
     const userId = getLastUserId();
     if (!userId) {
-      setCompanies(getCompanySnapshots());
+      setCompanies([]);
       return;
     }
     try {
       const { data } = await client.get('/companies', { params: { userId } });
-      const snapshots = getCompanySnapshots();
+      const snapshots = getCompanySnapshots(userId);
       if (Array.isArray(data) && data.length > 0) {
         setCompanies(mergeCompanies(data, snapshots));
       } else {
         setCompanies(snapshots);
       }
     } catch {
-      setCompanies(getCompanySnapshots());
+      setCompanies(getCompanySnapshots(userId));
     }
   }, []);
 
   useEffect(() => {
-    refreshCompanies();
+    const timeoutId = window.setTimeout(() => {
+      refreshCompanies();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [refreshCompanies]);
 
   return { companies, refreshCompanies };

@@ -39,21 +39,30 @@ export function isRegisteredLocally() {
   return getLastUserId() !== null || getLastCompanyId() !== null;
 }
 
-export function saveCompanySnapshot(company) {
-  if (!company?.id) return;
-  const existing = getCompanySnapshots();
-  const compact = existing.filter(item => item.id !== company.id);
-  compact.unshift({ id: company.id, name: company.name ?? `Компания #${company.id}` });
+export function saveCompanySnapshot(company, userId = getLastUserId()) {
+  if (!company?.id || !userId) return;
+  const existing = getAllCompanySnapshots();
+  const compact = existing.filter(item => !(item?.id === company.id && item?.userId === userId));
+  compact.unshift({
+    id: company.id,
+    name: company.name ?? `Компания #${company.id}`,
+    userId,
+  });
   localStorage.setItem('companySnapshots', JSON.stringify(compact.slice(0, 30)));
 }
 
-export function getCompanySnapshots() {
+export function getCompanySnapshots(userId = getLastUserId()) {
+  if (!userId) return [];
+  return getAllCompanySnapshots().filter(item => item.userId === userId);
+}
+
+function getAllCompanySnapshots() {
   const raw = localStorage.getItem('companySnapshots');
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(item => item && item.id);
+    return parsed.filter(item => item && item.id && item.userId);
   } catch {
     return [];
   }

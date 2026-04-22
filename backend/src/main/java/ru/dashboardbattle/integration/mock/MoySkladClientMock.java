@@ -23,37 +23,34 @@ public class MoySkladClientMock implements MoySkladClient {
         report.setPeriodEnd(LocalDate.now());
         report.setStatus("PENDING");
 
-        List<TopNEntryDto> entries = new ArrayList<>();
-
-        entries.add(new TopNEntryDto(
+        // Все возможные записи в порядке убывания рейтинга
+        List<TopNEntryDto> all = new ArrayList<>();
+        all.add(new TopNEntryDto(
                 "Иванов Иван", "ms-emp-001",
                 new BigDecimal("1500000.00"), new BigDecimal("350000.00"),
                 "Ноутбук ASUS VivoBook", 1));
-
-        entries.add(new TopNEntryDto(
+        all.add(new TopNEntryDto(
                 "Петрова Мария", "ms-emp-002",
                 new BigDecimal("1200000.00"), new BigDecimal("280000.00"),
                 "Монитор Samsung 27\"", 2));
-
-        entries.add(new TopNEntryDto(
+        all.add(new TopNEntryDto(
                 "Сидоров Алексей", "ms-emp-003",
                 new BigDecimal("980000.00"), new BigDecimal("210000.00"),
                 "Клавиатура Logitech MX", 3));
+        all.add(new TopNEntryDto(
+                "Козлова Анна", "ms-emp-004",
+                new BigDecimal("870000.00"), new BigDecimal("195000.00"),
+                "Мышь Razer DeathAdder", 4));
+        all.add(new TopNEntryDto(
+                "Новиков Дмитрий", "ms-emp-005",
+                new BigDecimal("750000.00"), new BigDecimal("160000.00"),
+                "Наушники Sony WH-1000XM5", 5));
 
-        if (topN >= 4) {
-            entries.add(new TopNEntryDto(
-                    "Козлова Анна", "ms-emp-004",
-                    new BigDecimal("870000.00"), new BigDecimal("195000.00"),
-                    "Мышь Razer DeathAdder", 4));
-        }
-        if (topN >= 5) {
-            entries.add(new TopNEntryDto(
-                    "Новиков Дмитрий", "ms-emp-005",
-                    new BigDecimal("750000.00"), new BigDecimal("160000.00"),
-                    "Наушники Sony WH-1000XM5", 5));
-        }
+        // Обрезаем строго до topN записей
+        int limit = Math.min(Math.max(topN, 1), all.size());
+        List<TopNEntryDto> entries = all.subList(0, limit);
 
-        report.setEntries(entries);
+        report.setEntries(new ArrayList<>(entries));
         return report;
     }
 }

@@ -33,6 +33,12 @@ public class ReportController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/top-n/{id}/archive")
+    public ResponseEntity<TopNReportDto> archiveTopN(@PathVariable Long id) {
+        TopNReportDto result = service.archiveTopN(id);
+        return ResponseEntity.ok(result);
+    }
+
     @PostMapping("/top-n/{id}/publish")
     public ResponseEntity<PublicationResultDto> publishTopN(
             @PathVariable Long id,

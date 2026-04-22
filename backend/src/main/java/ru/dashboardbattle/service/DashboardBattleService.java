@@ -240,6 +240,7 @@ public class DashboardBattleService {
         integration.setTokenEncrypted(normalizeMoyskladToken(body.getAccessToken()));
         integration.setStatus("ACTIVE");
         moyskladIntegrationRepository.save(integration);
+        log.info("МойСклад-интеграция сохранена для companyId={}", body.getCompanyId());
         return getIntegrationData(body.getCompanyId());
     }
 
@@ -247,8 +248,8 @@ public class DashboardBattleService {
         if (body.getCompanyId() == null) {
             throw new ConflictException("Укажите companyId.");
         }
-        if (!StringUtils.hasText(body.getBotToken()) || !StringUtils.hasText(body.getChannelChatId())) {
-            throw new ConflictException("Укажите botToken и channelChatId Telegram.");
+        if (!StringUtils.hasText(body.getBotToken())) {
+            throw new ConflictException("Укажите botToken Telegram.");
         }
         Company company = companyRepository.findById(body.getCompanyId())
                 .orElseThrow(() -> new NotFoundException("Компания не найдена: " + body.getCompanyId()));
@@ -260,9 +261,12 @@ public class DashboardBattleService {
                     return created;
                 });
         integration.setBotTokenEncrypted(normalizeTelegramBotToken(body.getBotToken()));
-        integration.setChannelChatId(body.getChannelChatId().trim());
+        if (StringUtils.hasText(body.getChannelChatId())) {
+            integration.setChannelChatId(body.getChannelChatId().trim());
+        }
         integration.setStatus("ACTIVE");
         telegramIntegrationRepository.save(integration);
+        log.info("Telegram-интеграция сохранена для companyId={}", body.getCompanyId());
         return getIntegrationData(body.getCompanyId());
     }
 
@@ -305,7 +309,10 @@ public class DashboardBattleService {
                 .orElseThrow(() -> new NotFoundException("Интеграция МойСклад не найдена для компании: " + companyId));
 
         String moyskladToken = resolveMoySkladToken(msIntegration);
+        log.info("Запрос ТОП-{} из МойСклад для companyId={}", topN, companyId);
         TopNReportDto fetched = moySkladClient.fetchTopN(moyskladToken, topN);
+        int entryCount = fetched.getEntries() == null ? 0 : fetched.getEntries().size();
+        log.info("МойСклад вернул {} позиций (запрошено topN={}) для companyId={}", entryCount, topN, companyId);
 
         TopNReport entity = TopNMapper.toEntity(fetched, company);
         entity.setStatus("PENDING");
@@ -324,6 +331,22 @@ public class DashboardBattleService {
         return TopNMapper.toDto(report);
     }
 
+    public TopNReportDto archiveTopN(Long reportId) {
+        TopNReport report = topNReportRepository.findById(reportId)
+                .orElseThrow(() -> new NotFoundException("Отчёт не найден: " + reportId));
+
+        if ("PUBLISHING".equals(report.getStatus())) {
+            throw new ConflictException("Нельзя архивировать отчёт, пока идёт публикация.");
+        }
+        if (!"ARCHIVED".equals(report.getStatus())) {
+            report.setStatus("ARCHIVED");
+            report = topNReportRepository.save(report);
+            log.info("Отчёт top-n архивирован reportId={}", reportId);
+        }
+
+        return TopNMapper.toDto(report);
+    }
+
     public TopNReportDto getReportById(Long reportId) {
         TopNReport report = topNReportRepository.findById(reportId)
                 .orElseThrow(() -> new NotFoundException("Отчёт не найден: " + reportId));
@@ -333,6 +356,13 @@ public class DashboardBattleService {
     public PublicationResultDto publishTopN(Long reportId, Long destinationId) {
         TopNReport report = topNReportRepository.findById(reportId)
                 .orElseThrow(() -> new NotFoundException("Отчёт не найден: " + reportId));
+
+        if (!"CONFIRMED".equals(report.getStatus())) {
+            throw new ConflictException(
+                    "Публикация возможна только для подтверждённых рейтингов. " +
+                    "Текущий статус: " + report.getStatus() + ". Сначала подтвердите рейтинг в разделе ТОП-N."
+            );
+        }
 
         PublishDestination destination = publishDestinationRepository.findById(destinationId)
                 .orElseThrow(() -> new NotFoundException("Назначение публикации не найдено: " + destinationId));
@@ -350,6 +380,8 @@ public class DashboardBattleService {
 
         TopNReportDto reportDto = TopNMapper.toDto(report);
 
+        log.info("Начало публикации reportId={} в канал={} destinationId={}", reportId, channel.getCode(), destinationId);
+
         try {
             PublicationResultDto result;
 
@@ -358,15 +390,24 @@ public class DashboardBattleService {
                         .findByCompany_Id(report.getCompany().getId())
                         .orElseThrow(() -> new NotFoundException("Telegram интеграция не найдена"));
 
+                String chatId = resolveTelegramChatId(destination, tgIntegration);
+                if (!StringUtils.hasText(chatId)) {
+                    throw new ConflictException(
+                            "Не задан chat_id для публикации в Telegram. " +
+                            "Укажите ID канала в настройках места публикации или в интеграции Telegram."
+                    );
+                }
+                log.info("Публикация в Telegram chatId={} (замаскирован)", maskChatId(chatId));
                 result = telegramPublisher.publish(
                         reportDto,
                         resolveTelegramToken(tgIntegration),
-                        resolveTelegramChatId(destination, tgIntegration)
+                        chatId
                 );
             } else if ("DEMO_PAGE".equals(channel.getCode())) {
                 result = demoPagePublisher.publish(reportDto, publication);
             } else if ("WEBHOOK".equals(channel.getCode())) {
                 String url = destination.getExternalIdentifier();
+                log.info("Публикация через Webhook url={}", url);
                 result = webhookPublisher.publish(reportDto, url);
             } else {
                 throw new UnsupportedChannelException(channel.getCode());
@@ -389,10 +430,12 @@ public class DashboardBattleService {
             result.setReportPeriodEnd(report.getPeriodEnd());
             result.setCreatedAt(publication.getCreatedAt());
             fillPublicationLabels(result, channel, destination);
+            log.info("Публикация успешна reportId={} externalId={}", reportId, result.getExternalId());
             return result;
 
         } catch (Exception e) {
-            log.error("Ошибка публикации reportId={}, destinationId={}: {}", reportId, destinationId, e.getMessage(), e);
+            log.error("Ошибка публикации reportId={}, destinationId={}, канал={}: {}",
+                    reportId, destinationId, channel.getCode(), e.getMessage(), e);
             publication.setStatus("FAILED");
             publicationRepository.save(publication);
 
@@ -401,7 +444,8 @@ public class DashboardBattleService {
 
             if (e instanceof NotFoundException
                     || e instanceof UnsupportedChannelException
-                    || e instanceof IntegrationException) {
+                    || e instanceof IntegrationException
+                    || e instanceof ConflictException) {
                 throw (RuntimeException) e;
             }
             throw new RuntimeException("Ошибка публикации: " + e.getMessage(), e);
@@ -460,7 +504,7 @@ public class DashboardBattleService {
         if (status != null && !status.isBlank()) {
             reports = topNReportRepository.findByCompany_IdAndStatusOrderByCreatedAtDesc(companyId, status);
         } else {
-            reports = topNReportRepository.findByCompany_IdOrderByCreatedAtDesc(companyId);
+            reports = topNReportRepository.findByCompany_IdAndStatusNotOrderByCreatedAtDesc(companyId, "ARCHIVED");
         }
         return reports.stream()
                 .map(TopNMapper::toDto)
@@ -514,6 +558,30 @@ public class DashboardBattleService {
             return "••••";
         }
         return "••••" + raw.substring(raw.length() - 4);
+    }
+
+    public CompanySummaryDto createCompany(Long userId, String companyName) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь не найден: " + userId));
+        if (!StringUtils.hasText(companyName)) {
+            throw new ConflictException("Укажите название компании.");
+        }
+        Company company = new Company();
+        company.setName(companyName.trim());
+        company.setUser(user);
+        company = companyRepository.save(company);
+        log.info("Создана новая компания id={} name='{}' для userId={}", company.getId(), company.getName(), userId);
+        CompanySummaryDto dto = new CompanySummaryDto();
+        dto.setId(company.getId());
+        dto.setName(company.getName());
+        return dto;
+    }
+
+    public void deletePublishDestination(Long destinationId) {
+        PublishDestination dest = publishDestinationRepository.findById(destinationId)
+                .orElseThrow(() -> new NotFoundException("Место публикации не найдено: " + destinationId));
+        publishDestinationRepository.delete(dest);
+        log.info("Удалено место публикации id={}", destinationId);
     }
 
     public UserRepository getUserRepository() { return userRepository; }

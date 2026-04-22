@@ -14,6 +14,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ru.dashboardbattle.dto.TopNEntryDto;
 import ru.dashboardbattle.dto.TopNReportDto;
 import ru.dashboardbattle.exception.IntegrationException;
@@ -33,6 +35,7 @@ import java.util.zip.GZIPInputStream;
 @Primary
 @ConditionalOnProperty(name = "integration.moysklad.real-enabled", havingValue = "true")
 public class MoySkladClientHttp implements MoySkladClient {
+    private static final Logger log = LoggerFactory.getLogger(MoySkladClientHttp.class);
 
     private final RestTemplate restTemplate;
     private final String baseUrl;
@@ -55,6 +58,7 @@ public class MoySkladClientHttp implements MoySkladClient {
     @Override
     public TopNReportDto fetchTopN(String token, int topN) {
         String url = baseUrl + "/entity/employee?limit=" + topN;
+        log.info("Calling MoySklad employee API: topN={}, url={}", topN, url);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
@@ -68,23 +72,29 @@ public class MoySkladClientHttp implements MoySkladClient {
                     new HttpEntity<>(headers),
                     byte[].class
             );
+            log.info("MoySklad employee API responded with status={}", response.getStatusCode());
             Map<String, Object> body = parseBody(response);
             if (body == null) {
+                log.warn("MoySklad employee API returned empty body for topN={}", topN);
                 throw new IntegrationException("Пустой ответ от МойСклад");
             }
 
             Object rowsObj = body.get("rows");
             if (!(rowsObj instanceof List<?> rows)) {
+                log.warn("MoySklad employee API returned body without rows list: keys={}", body.keySet());
                 throw new IntegrationException("Некорректный формат ответа МойСклад");
             }
+            log.info("MoySklad employee API returned {} rows for topN={}", rows.size(), topN);
 
             TopNReportDto report = new TopNReportDto();
             report.setPeriodStart(LocalDate.now().minusDays(30));
             report.setPeriodEnd(LocalDate.now());
             report.setStatus("PENDING");
             report.setEntries(mapRows(rows, topN));
+            log.info("Mapped {} rows from MoySklad into report entries", report.getEntries().size());
             return report;
         } catch (RestClientException ex) {
+            log.error("MoySklad employee API request failed for topN={}: {}", topN, ex.getMessage(), ex);
             throw new IntegrationException("Ошибка вызова МойСклад API: " + ex.getMessage(), ex);
         }
     }
@@ -104,6 +114,7 @@ public class MoySkladClientHttp implements MoySkladClient {
             }
             return objectMapper.readValue(jsonBytes, Map.class);
         } catch (IOException ex) {
+            log.error("Failed to parse MoySklad response body: {}", ex.getMessage(), ex);
             throw new IntegrationException("Не удалось разобрать ответ МойСклад", ex);
         }
     }
@@ -134,6 +145,7 @@ public class MoySkladClientHttp implements MoySkladClient {
         }
 
         if (entries.isEmpty()) {
+            log.warn("MoySklad rows were empty after mapping");
             throw new IntegrationException("МойСклад вернул пустой список сотрудников");
         }
         return entries;

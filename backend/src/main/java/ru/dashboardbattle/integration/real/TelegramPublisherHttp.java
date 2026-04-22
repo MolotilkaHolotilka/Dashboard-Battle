@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 @Component
 @ConditionalOnProperty(name = "integration.telegram.real-enabled", havingValue = "true")
 public class TelegramPublisherHttp implements TelegramPublisher {
+    private static final Logger log = LoggerFactory.getLogger(TelegramPublisherHttp.class);
 
     private final RestTemplate restTemplate;
 
@@ -41,11 +44,14 @@ public class TelegramPublisherHttp implements TelegramPublisher {
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("chat_id", chatId);
         request.put("text", buildMessage(reportDto));
+        log.info("Sending Telegram publication: chatId={}, entries={}", maskChatId(chatId), entryCount(reportDto));
 
         try {
             ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
             Map<String, Object> body = response.getBody();
             if (body == null || !Boolean.TRUE.equals(body.get("ok"))) {
+                log.warn("Telegram sendMessage returned unsuccessful response: status={}, body={}",
+                        response.getStatusCode(), body);
                 throw new IntegrationException("Telegram вернул некорректный ответ при публикации");
             }
 
@@ -56,14 +62,18 @@ public class TelegramPublisherHttp implements TelegramPublisher {
 
             Object messageId = result.get("message_id");
             if (messageId == null) {
+                log.warn("Telegram sendMessage response does not contain message_id: {}", body);
                 throw new IntegrationException("Telegram не вернул message_id");
             }
 
             PublicationResultDto dto = new PublicationResultDto();
             dto.setStatus("PUBLISHED");
             dto.setExternalId(String.valueOf(messageId));
+            log.info("Telegram publication created successfully: chatId={}, messageId={}",
+                    maskChatId(chatId), dto.getExternalId());
             return dto;
         } catch (RestClientException ex) {
+            log.error("Telegram sendMessage failed for chatId={}: {}", maskChatId(chatId), ex.getMessage(), ex);
             throw new IntegrationException("Ошибка вызова Telegram API: " + ex.getMessage(), ex);
         }
     }
@@ -71,6 +81,7 @@ public class TelegramPublisherHttp implements TelegramPublisher {
     @Override
     public boolean cancelPublication(String botToken, String chatId, String externalId) {
         String url = "https://api.telegram.org/bot" + botToken + "/deleteMessage";
+        log.info("Cancelling Telegram publication: chatId={}, externalId={}", maskChatId(chatId), externalId);
 
         try {
             Map<String, Object> request = Map.of(
@@ -84,12 +95,32 @@ public class TelegramPublisherHttp implements TelegramPublisher {
                     Map.class
             );
             Map<String, Object> body = response.getBody();
-            return body != null && Boolean.TRUE.equals(body.get("ok"));
+            boolean ok = body != null && Boolean.TRUE.equals(body.get("ok"));
+            log.info("Telegram deleteMessage finished: chatId={}, externalId={}, ok={}",
+                    maskChatId(chatId), externalId, ok);
+            return ok;
         } catch (NumberFormatException ex) {
+            log.error("Telegram deleteMessage received invalid externalId={}", externalId, ex);
             throw new IntegrationException("Некорректный externalId для Telegram: " + externalId, ex);
         } catch (RestClientException ex) {
+            log.error("Telegram deleteMessage failed for chatId={}, externalId={}: {}",
+                    maskChatId(chatId), externalId, ex.getMessage(), ex);
             throw new IntegrationException("Ошибка отмены публикации в Telegram: " + ex.getMessage(), ex);
         }
+    }
+
+    private static int entryCount(TopNReportDto reportDto) {
+        return reportDto == null || reportDto.getEntries() == null ? 0 : reportDto.getEntries().size();
+    }
+
+    private static String maskChatId(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "<empty>";
+        }
+        if (raw.length() <= 4) {
+            return "****";
+        }
+        return "****" + raw.substring(raw.length() - 4);
     }
 
     private String buildMessage(TopNReportDto reportDto) {

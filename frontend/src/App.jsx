@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
@@ -23,10 +23,12 @@ function NavBar({ auth, onLogout }) {
         {auth && dangerZoneEnabled && (
           <NavLink to="/danger-zone" className="nav-danger">Danger Zone</NavLink>
         )}
-        {auth && (
-          <button className="nav-logout" onClick={onLogout}>Выйти</button>
-        )}
       </div>
+      {auth && (
+        <div className="nav-right">
+          <button className="nav-logout" onClick={onLogout}>Выйти</button>
+        </div>
+      )}
     </nav>
   );
 }

@@ -1,18 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import client from '../api/client';
 import useUserCompanies from '../hooks/useUserCompanies';
 import './PublicationsPage.css';
 
 const STATUS_LABEL = {
+  PENDING:    'Ожидает вашего подтверждения на публикацию',
+  CONFIRMED:  'Подтверждён',
   PUBLISHING: 'Публикуется',
-  PUBLISHED: 'Опубликован',
-  FAILED: 'Ошибка',
-  RECALLED: 'Отозван',
+  PUBLISHED:  'Опубликован',
+  FAILED:     'Ошибка',
+  RECALLED:   'Отозван',
+};
+
+const STATUS_HINT = {
+  PENDING:   'Рейтинг сформирован и ожидает вашего подтверждения на публикацию.',
+  CONFIRMED: 'Рейтинг подтверждён и готов к публикации.',
+  PUBLISHING:'Идёт публикация рейтинга в выбранный канал.',
+  PUBLISHED: 'Рейтинг успешно опубликован.',
+  FAILED:    'Ошибка публикации. Попробуйте ещё раз.',
+  RECALLED:  'Публикация была отозвана.',
 };
 
 function StatusBadge({ status }) {
   return (
-    <span className={`badge badge-${status?.toLowerCase()}`}>
+    <span
+      className={`badge badge-${status?.toLowerCase()}`}
+      title={STATUS_HINT[status] ?? status}
+    >
       {STATUS_LABEL[status] ?? status}
     </span>
   );
@@ -41,7 +55,11 @@ function PublicationsPage() {
   const [listError, setListError] = useState(null);
   const [listLoading, setListLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
-  const { companies, refreshCompanies } = useUserCompanies();
+  const { companies } = useUserCompanies();
+
+  // Refs для polling-интервалов
+  const reportsIntervalRef = useRef(null);
+  const pubsIntervalRef = useRef(null);
 
   const loadContext = useCallback(async (cid) => {
     if (!cid) {
@@ -78,13 +96,41 @@ function PublicationsPage() {
     }
   }, []);
 
+  const loadPublications = useCallback(async (cid) => {
+    if (!cid) return;
+    setListLoading(true);
+    try {
+      const { data } = await client.get('/publications', {
+        params: { companyId: cid },
+      });
+      setPublications(data);
+    } catch (err) {
+      setListError(err.response?.data?.message ?? 'Ошибка загрузки истории');
+    } finally {
+      setListLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (workspaceCompanyId) {
       localStorage.setItem('lastCompanyId', String(workspaceCompanyId));
     }
     loadContext(workspaceCompanyId);
     loadReports(workspaceCompanyId);
-  }, [workspaceCompanyId, loadContext, loadReports]);
+    loadPublications(workspaceCompanyId);
+
+    // Polling каждые 15 секунд
+    clearInterval(reportsIntervalRef.current);
+    clearInterval(pubsIntervalRef.current);
+    if (workspaceCompanyId) {
+      reportsIntervalRef.current = setInterval(() => loadReports(workspaceCompanyId), 15000);
+      pubsIntervalRef.current    = setInterval(() => loadPublications(workspaceCompanyId), 15000);
+    }
+    return () => {
+      clearInterval(reportsIntervalRef.current);
+      clearInterval(pubsIntervalRef.current);
+    };
+  }, [workspaceCompanyId, loadContext, loadReports, loadPublications]);
 
   async function handlePublish(e) {
     e.preventDefault();
@@ -98,6 +144,7 @@ function PublicationsPage() {
       );
       setPubResult(data);
       await loadReports(workspaceCompanyId);
+      await loadPublications(workspaceCompanyId);
     } catch (err) {
       setPubError(err.response?.data?.message ?? 'Ошибка публикации');
     } finally {
@@ -127,23 +174,6 @@ function PublicationsPage() {
     }
   }
 
-  async function handleLoadList(e) {
-    e.preventDefault();
-    setListError(null);
-    setPublications(null);
-    setListLoading(true);
-    try {
-      const { data } = await client.get('/publications', {
-        params: { companyId: workspaceCompanyId },
-      });
-      setPublications(data);
-    } catch (err) {
-      setListError(err.response?.data?.message ?? 'Ошибка загрузки');
-    } finally {
-      setListLoading(false);
-    }
-  }
-
   async function handleCancel(pubId) {
     setCancellingId(pubId);
     try {
@@ -165,7 +195,11 @@ function PublicationsPage() {
   }
 
   const destinationOptions = destinations;
-  const availableReports = reports.filter(report => report.status === 'PENDING' || report.status === 'CONFIRMED');
+
+  // Шаг 1 — PENDING + CONFIRMED для просмотра сформированных
+  const availableReports = reports.filter(r => r.status === 'PENDING' || r.status === 'CONFIRMED');
+  // Шаг 2 — только CONFIRMED для публикации
+  const confirmedReports = reports.filter(r => r.status === 'CONFIRMED');
 
   function formatDateTime(value) {
     if (!value) return '—';
@@ -198,9 +232,6 @@ function PublicationsPage() {
               ))}
             </select>
           </label>
-          <button type="button" onClick={refreshCompanies}>
-            Обновить компании
-          </button>
           {companyLabel && (
             <span className="company-hint">{companyLabel}</span>
           )}
@@ -222,6 +253,7 @@ function PublicationsPage() {
               required
               min="1"
               max="50"
+              title="Сколько лучших сотрудников включить в рейтинг (от 1 до 50)"
             />
           </label>
           <button type="submit" disabled={createLoading || !workspaceCompanyId}>
@@ -240,6 +272,10 @@ function PublicationsPage() {
               </span>
               <span>Статус: <StatusBadge status={createResult.status} /></span>
             </div>
+            <div className="pub-next-hint">
+              Для просмотра отчёта и его подтверждения перейдите в раздел{' '}
+              <a href="/topn">ТОП-N</a>. После этого можно вернуться на Шаг 2 и опубликовать рейтинг.
+            </div>
           </div>
         )}
 
@@ -256,6 +292,7 @@ function PublicationsPage() {
                   type="button"
                   className={`report-pick ${String(pubForm.reportId) === String(report.id) ? 'active' : ''}`}
                   onClick={() => setPubForm(prev => ({ ...prev, reportId: String(report.id) }))}
+                  title={STATUS_HINT[report.status] ?? report.status}
                 >
                   <span>{report.companyName ?? companyLabel ?? `Компания #${report.companyId}`}</span>
                   <span>{formatDateTime(report.createdAt)}</span>
@@ -275,21 +312,29 @@ function PublicationsPage() {
               value={pubForm.reportId}
               onChange={e => setPubForm({ ...pubForm, reportId: e.target.value })}
               required
+              title="Доступны только подтверждённые рейтинги. Чтобы подтвердить рейтинг — перейдите в раздел ТОП-N."
             >
               <option value="">— выберите рейтинг —</option>
-              {availableReports.map(report => (
+              {confirmedReports.map(report => (
                 <option key={report.id} value={report.id}>
                   {`${report.companyName ?? companyLabel ?? `Компания #${report.companyId}`} · ${formatDateTime(report.createdAt)}`}
                 </option>
               ))}
             </select>
           </label>
+          {confirmedReports.length === 0 && workspaceCompanyId && (
+            <p className="hint hint-warn">
+              Нет подтверждённых рейтингов. Сначала сформируйте рейтинг (Шаг 1) и подтвердите его в разделе{' '}
+              <a href="/topn">ТОП-N</a>.
+            </p>
+          )}
           <label>
             Место публикации
             <select
               value={pubForm.destinationId}
               onChange={e => setPubForm({ ...pubForm, destinationId: e.target.value })}
               required
+              title="Канал и место куда будет отправлен рейтинг. Настроить каналы можно в разделе Интеграции."
             >
               <option value="">— выберите —</option>
               {destinationOptions.map(d => (
@@ -299,7 +344,7 @@ function PublicationsPage() {
               ))}
             </select>
           </label>
-          <button type="submit" disabled={publishing}>
+          <button type="submit" disabled={publishing || confirmedReports.length === 0}>
             {publishing ? 'Публикую...' : 'Опубликовать'}
           </button>
         </form>
@@ -326,20 +371,25 @@ function PublicationsPage() {
                 </a>
               </div>
             )}
+            <div className="pub-next-hint">
+              Для просмотра истории публикаций —{' '}
+              <a href="#pub-history">прокрутите вниз</a> или смотрите раздел ниже.
+            </div>
           </div>
         )}
       </section>
 
       <hr className="divider" />
 
-      <section className="pub-section">
-        <h2>История публикаций</h2>
-        <form className="list-form" onSubmit={handleLoadList}>
-          <span className="list-hint">Текущая компания: <b>{workspaceCompanyId || '—'}</b></span>
-          <button type="submit" disabled={listLoading || !workspaceCompanyId}>
-            {listLoading ? 'Загрузка...' : 'Загрузить историю'}
-          </button>
-        </form>
+      <section className="pub-section" id="pub-history">
+        <h2>
+          История публикаций
+          {listLoading && <span className="loading-dot"> ⟳</span>}
+        </h2>
+
+        {!workspaceCompanyId && (
+          <p className="hint">Выберите компанию выше, чтобы увидеть историю публикаций.</p>
+        )}
 
         {listError && <div className="alert alert-error">{listError}</div>}
 
